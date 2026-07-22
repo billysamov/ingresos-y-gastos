@@ -1,7 +1,7 @@
 type StoredState = Record<string, unknown>;
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
-const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? import.meta.env?.VITE_SUPABASE_URL)?.replace(/\/$/, "");
+const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY;
 const stateId = "finanza-personal";
 const profileId = "00000000-0000-4000-8000-000000000001";
 
