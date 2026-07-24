@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car, ChevronDown, ChevronRight, CircleDollarSign, CreditCard, Home as HomeIcon, Layers3, LayoutDashboard, Landmark, Menu, MoreHorizontal, PiggyBank, Plus, ReceiptText, Search, Settings, ShoppingBag, Smartphone, Target, Trash2, TrendingUp, Utensils, WalletCards, X, Zap } from "lucide-react";
 import { isSupabaseConfigured, loadSupabaseState, saveSupabaseState, syncSupabaseTables } from "../lib/supabase-state";
 
-type ExpenseSource = "fixed"|"monthly"|"subexpense";
+type ExpenseSource = "fixed"|"monthly"|"category";
 type Tx = { id:number; title:string; category:string; account:string; date:string; amount:number; kind:"income"|"expense"; period?:string; expenseSource?:ExpenseSource; sourceId?:number; groupName?:string };
 type ExpenseEntry = { id:number; name:string; category:string; amount:number; period?:string; account?:string; transactionId?:number };
 type ExpenseGroup = { id:number; name:string; budget:number; items:ExpenseEntry[] };
@@ -39,7 +39,7 @@ function categoryIcon(category:string,kind:"income"|"expense") {
 function expenseSourceLabel(source?:ExpenseSource,groupName?:string) {
   if(source==="fixed") return "Gasto fijo";
   if(source==="monthly") return "Gasto mensual";
-  if(source==="subexpense") return groupName?`Subgasto · ${groupName}`:"Subgasto por rubro";
+  if(source==="category") return "Detalle por categoría";
   return "";
 }
 
@@ -150,7 +150,7 @@ export default function Home() {
   const expenseEntriesForPeriod=useMemo(()=>[
     ...fixedExpenses.map(item=>({item,source:"fixed" as const})),
     ...monthlyExpenses.filter(item=>(item.period??initialPeriod)===activePeriod).map(item=>({item,source:"monthly" as const})),
-    ...expenseGroups.flatMap(group=>group.items.filter(item=>(item.period??initialPeriod)===activePeriod).map(item=>({item,source:"subexpense" as const,groupName:group.name}))),
+    ...expenseGroups.map(group=>({item:{id:group.id,name:group.name,category:group.name,amount:group.budget,period:activePeriod} as ExpenseEntry,source:"category" as const})),
   ].filter(({item})=>!transactions.some(transaction=>transaction.kind==="expense"&&(transaction.id===item.transactionId||transaction.id===item.id))),[fixedExpenses,monthlyExpenses,expenseGroups,transactions,activePeriod]);
   const extraExpenseForPeriod=expenseEntriesForPeriod.reduce((sum,{item})=>sum+item.amount,0);
   // Los gastos creados desde "Gastos" no siempre nacen como una transacción.
@@ -158,11 +158,11 @@ export default function Home() {
   const detailedExpenseTransactions=useMemo<Tx[]>(()=>expenseEntriesForPeriod.map(entry=>({
     id:-Math.abs(entry.item.id), title:entry.item.name, category:entry.item.category,
     account:entry.item.account??"Efectivo", date:"Gasto registrado", amount:entry.item.amount,
-    kind:"expense", period:activePeriod, expenseSource:entry.source, sourceId:entry.item.id, groupName:"groupName" in entry?entry.groupName:undefined,
+    kind:"expense", period:activePeriod, expenseSource:entry.source, sourceId:entry.item.id,
   })),[expenseEntriesForPeriod,activePeriod]);
   const allPeriodTransactions=useMemo(()=>[...periodTransactions,...detailedExpenseTransactions],[periodTransactions,detailedExpenseTransactions]);
   const extraExpenseAccumulated=useMemo(()=>[
-    ...fixedExpenses,...monthlyExpenses,...expenseGroups.flatMap(group=>group.items),
+    ...fixedExpenses,...monthlyExpenses,...expenseGroups.map(group=>({id:group.id,name:group.name,category:group.name,amount:group.budget,period:initialPeriod} as ExpenseEntry)),
   ].filter(item=>!transactions.some(transaction=>transaction.kind==="expense"&&(transaction.id===item.transactionId||transaction.id===item.id))).reduce((sum,item)=>sum+item.amount,0),[fixedExpenses,monthlyExpenses,expenseGroups,transactions]);
   const totals = useMemo(() => ({
     income: periodTransactions.filter(t=>t.kind==="income").reduce((a,b)=>a+b.amount,0),
@@ -221,7 +221,7 @@ export default function Home() {
     if(source&&expenseId) {
       if(source==="fixed") setFixedExpenses(items=>items.filter(item=>item.id!==expenseId));
       if(source==="monthly") setMonthlyExpenses(items=>items.filter(item=>item.id!==expenseId));
-      if(source==="subexpense") setExpenseGroups(groups=>groups.map(group=>({...group,items:group.items.filter(item=>item.id!==expenseId)})));
+      if(source==="category") setExpenseGroups(groups=>groups.filter(group=>group.id!==expenseId));
     }
     if(id>=0) setTransactions(previous=>previous.filter(item=>item.id!==id));
     setNotice(source?`${expenseSourceLabel(source)} eliminado`:"Movimiento eliminado");
@@ -346,7 +346,7 @@ export default function Home() {
   const fixedTotal=fixedExpenses.reduce((sum,item)=>sum+item.amount,0);
   const monthlyForPeriod=monthlyExpenses.filter(item=>(item.period??initialPeriod)===activePeriod);
   const monthlyTotal=monthlyForPeriod.reduce((sum,item)=>sum+item.amount,0);
-  const groupedTotal=expenseGroups.reduce((sum,group)=>sum+group.items.filter(item=>(item.period??initialPeriod)===activePeriod).reduce((subtotal,item)=>subtotal+item.amount,0),0);
+  const groupedTotal=expenseGroups.reduce((sum,group)=>sum+group.budget,0);
 
   function moduleContent() {
     if(active==="Movimientos") return <>
@@ -357,14 +357,14 @@ export default function Home() {
     </>;
     if(active==="Gastos") return <>
       <ModuleHeading eyebrow="CONTROL DE GASTOS" title="Gastos" text="Organiza tus pagos fijos, consumos mensuales y el detalle de cada categoría." action={<button className="primary" onClick={()=>setExpenseModal({kind:expenseTab==="fixed"?"fixed":expenseTab==="monthly"?"monthly":"group"})}><Plus size={18}/>{expenseTab==="groups"?"Agregar detalle":"Agregar gasto"}</button>}/>
-      <section className="module-stats"><MiniStat label="Gastos fijos" value={fixedTotal} tone="orange"/><MiniStat label="Gastos mensuales" value={monthlyTotal} tone="blue"/><MiniStat label="Subgastos registrados" value={groupedTotal} tone="green"/></section>
+      <section className="module-stats"><MiniStat label="Gastos fijos" value={fixedTotal} tone="orange"/><MiniStat label="Gastos mensuales" value={monthlyTotal} tone="blue"/><MiniStat label="Categorías definidas" value={groupedTotal} tone="green"/></section>
       <div className="expense-tabs" role="tablist" aria-label="Tipos de gasto">
         <button role="tab" aria-selected={expenseTab==="fixed"} className={expenseTab==="fixed"?"active":""} onClick={()=>setExpenseTab("fixed")}><ReceiptText size={17}/>Gastos fijos</button>
         <button role="tab" aria-selected={expenseTab==="monthly"} className={expenseTab==="monthly"?"active":""} onClick={()=>setExpenseTab("monthly")}><CalendarDays size={17}/>Gastos mensuales</button>
         <button role="tab" aria-selected={expenseTab==="groups"} className={expenseTab==="groups"?"active":""} onClick={()=>setExpenseTab("groups")}><Layers3 size={17}/>Detalle por categoría</button>
       </div>
       {expenseTab!=="groups"&&<article className="card module-card expense-list-card"><div className="card-title"><div><h2>{expenseTab==="fixed"?"Pagos que se repiten cada mes":"Gastos variables de este mes"}</h2><p>{expenseTab==="fixed"?"Alquiler, ahorro, pasajes y servicios recurrentes.":"Consumos que pueden cambiar mes a mes."}</p></div></div><div className="expense-rows">{(expenseTab==="fixed"?fixedExpenses:monthlyExpenses).map(item=><div className="expense-row" key={item.id}><div className={`expense-kind-icon ${item.category==="Ahorro"?"saving":""}`}>{categoryIcon(item.category,"expense")}</div><div><strong>{item.name}</strong><span>{item.category} · {item.account||"Efectivo"} · {expenseTab==="fixed"?"Recurrente mensual":"Julio 2026"}</span></div><strong className="expense-value">S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>{expenseTab==="fixed"&&<button className="add-subexpense" onClick={()=>duplicateFixedExpense(item)}>Duplicar</button>}<button className="add-subexpense" onClick={()=>setDetailedEdit({section:expenseTab,id:item.id})}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeDetailedExpense(expenseTab,item.id)}><Trash2 size={15}/></button></div>)}{(expenseTab==="fixed"?fixedExpenses:monthlyExpenses).length===0&&<div className="empty-state"><ReceiptText/><strong>Aún no tienes gastos en esta sección</strong><span>Usa “Agregar gasto” para registrar el primero.</span></div>}</div></article>}
-      {expenseTab==="groups"&&<section className="expense-groups">{expenseGroups.map(group=>{const total=group.items.reduce((sum,item)=>sum+item.amount,0);const open=openGroups.includes(group.id);return <article className="card expense-group" key={group.id}><div className="expense-group-head"><button className="expense-group-toggle" onClick={()=>setOpenGroups(items=>items.includes(group.id)?items.filter(id=>id!==group.id):[...items,group.id])}><ChevronRight className={open?"open":""} size={18}/><div><strong>{group.name}</strong><span>{group.items.length} subgastos · Presupuesto S/ {group.budget.toLocaleString("es-PE")}</span></div></button><div className="expense-group-total"><span>Total utilizado</span><strong>S/ {total.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong></div><button className="add-subexpense" onClick={()=>editExpenseGroup(group.id)}>Editar</button><button className="add-subexpense" onClick={()=>setExpenseModal({kind:"sub",groupId:group.id})}><Plus size={16}/>Subgasto</button><button className="expense-delete" aria-label={`Eliminar rubro ${group.name}`} onClick={()=>{setExpenseGroups(groups=>groups.filter(item=>item.id!==group.id));setNotice("Rubro eliminado")}}><Trash2 size={15}/></button></div><div className="progress group-progress"><i className={total>group.budget?"danger":""} style={{width:`${Math.min(100,total/group.budget*100)}%`}}/></div>{open&&<div className="subexpense-list">{group.items.map(item=><div className="subexpense-row" key={item.id}><span className="subexpense-dot"/><div><strong>{item.name}</strong><span>{item.category}</span></div><strong>S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><button className="add-subexpense" onClick={()=>editSubExpense(group.id,item.id)}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeSubExpense(group.id,item.id)}><Trash2 size={14}/></button></div>)}{group.items.length===0&&<div className="empty-subexpenses">Este rubro todavía no tiene subgastos.</div>}</div>}</article>})}{expenseGroups.length===0&&<article className="card empty-state group-empty"><Layers3/><strong>Crea tu primer rubro general</strong><span>Por ejemplo: Mercado, Transporte o Estudios.</span></article>}</section>}
+      {expenseTab==="groups"&&<section className="expense-groups">{expenseGroups.map(group=>{const total=group.items.reduce((sum,item)=>sum+item.amount,0);const open=openGroups.includes(group.id);return <article className="card expense-group" key={group.id}><div className="expense-group-head"><button className="expense-group-toggle" onClick={()=>setOpenGroups(items=>items.includes(group.id)?items.filter(id=>id!==group.id):[...items,group.id])}><ChevronRight className={open?"open":""} size={18}/><div><strong>{group.name}</strong><span>{group.items.length} subgastos · Monto definido S/ {group.budget.toLocaleString("es-PE")}</span></div></button><div className="expense-group-total"><span>Detalle registrado</span><strong>S/ {total.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong></div><button className="add-subexpense" onClick={()=>editExpenseGroup(group.id)}>Editar</button><button className="add-subexpense" onClick={()=>setExpenseModal({kind:"sub",groupId:group.id})}><Plus size={16}/>Subgasto</button><button className="expense-delete" aria-label={`Eliminar categoría ${group.name}`} onClick={()=>{setExpenseGroups(groups=>groups.filter(item=>item.id!==group.id));setNotice("Detalle de categoría eliminado")}}><Trash2 size={15}/></button></div><div className="progress group-progress"><i className={total>group.budget?"danger":""} style={{width:`${Math.min(100,total/group.budget*100)}%`}}/></div>{open&&<div className="subexpense-list">{group.items.map(item=><div className="subexpense-row" key={item.id}><span className="subexpense-dot"/><div><strong>{item.name}</strong><span>{item.category}</span></div><strong>S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><button className="add-subexpense" onClick={()=>editSubExpense(group.id,item.id)}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeSubExpense(group.id,item.id)}><Trash2 size={14}/></button></div>)}{group.items.length===0&&<div className="empty-subexpenses">Esta categoría todavía no tiene subgastos.</div>}</div>}</article>})}{expenseGroups.length===0&&<article className="card empty-state group-empty"><Layers3/><strong>Activa el detalle de tu primera categoría</strong><span>Las categorías se crean desde Configuración.</span></article>}</section>}
     </>;
     if(active==="Presupuestos") return <>
       <ModuleHeading eyebrow="CONTROL MENSUAL" title="Presupuestos" text="Crea los límites por rubro que quieras controlar." action={<button onClick={()=>setShowBudgetModal(true)}><Plus size={18}/>Nuevo presupuesto</button>}/>
