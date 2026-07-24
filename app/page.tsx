@@ -374,7 +374,7 @@ export default function Home() {
 
       <div className="content">
         {active!=="Resumen" ? moduleContent() : <>
-        <div className="page-heading"><div><p className="eyebrow">LUNES, 20 DE JULIO</p><h1>Buenos días, Carlos <span>👋</span></h1><p>Aquí tienes el resumen de tus finanzas este mes.</p></div><button className="mobile-add primary" onClick={()=>setShowModal(true)}><Plus size={18}/>Registrar</button></div>
+        <div className="page-heading"><div><p className="eyebrow">PERÍODO: {monthNames[selectedMonth].toUpperCase()} {selectedYear}</p><h1>Buenos días, {profile.fullName} <span>👋</span></h1><p>Aquí tienes el resumen de tus finanzas de {monthNames[selectedMonth].toLowerCase()}.</p></div><button className="mobile-add primary" onClick={()=>setShowModal(true)}><Plus size={18}/>Registrar</button></div>
 
         <section className="metrics">
           <Metric label="Balance total" value={balance} delta="Datos reales" icon={<WalletCards/>} tone="blue" />
