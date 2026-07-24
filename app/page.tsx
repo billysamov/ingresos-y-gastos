@@ -5,7 +5,7 @@ import { ArrowDownLeft, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car
 import { isSupabaseConfigured, loadSupabaseState, saveSupabaseState, syncSupabaseTables } from "../lib/supabase-state";
 
 type Tx = { id:number; title:string; category:string; account:string; date:string; amount:number; kind:"income"|"expense"; period?:string };
-type ExpenseEntry = { id:number; name:string; category:string; amount:number; period?:string };
+type ExpenseEntry = { id:number; name:string; category:string; amount:number; period?:string; account?:string };
 type ExpenseGroup = { id:number; name:string; budget:number; items:ExpenseEntry[] };
 type ExpenseModal = { kind:"fixed"|"monthly"|"group"|"sub"; groupId?:number } | null;
 type ExpenseEdit = { kind:"group"; groupId:number } | { kind:"sub"; groupId:number; itemId:number } | null;
@@ -202,9 +202,10 @@ export default function Home() {
     const name=String(fd.get("name")||"").trim();
     const amount=Number(fd.get("amount")||0);
     const category=String(fd.get("category")||"Otros");
+    const account=String(fd.get("account")||"Efectivo");
     const id=Date.now();
-    if(expenseModal.kind==="fixed") setFixedExpenses(items=>[{id,name,category,amount},...items]);
-    if(expenseModal.kind==="monthly") setMonthlyExpenses(items=>[{id,name,category,amount,period:activePeriod},...items]);
+    if(expenseModal.kind==="fixed") setFixedExpenses(items=>[{id,name,category,amount,account},...items]);
+    if(expenseModal.kind==="monthly") setMonthlyExpenses(items=>[{id,name,category,amount,account,period:activePeriod},...items]);
     if(expenseModal.kind==="group") {
       setExpenseGroups(groups=>[{id,name,budget:amount,items:[]},...groups]);
       setOpenGroups(groups=>[id,...groups]);
@@ -217,6 +218,11 @@ export default function Home() {
     }
     setExpenseModal(null);setSubRows([1]);
     setNotice(expenseModal.kind==="group"?"Rubro creado correctamente":"Gasto registrado correctamente");
+  }
+
+  function duplicateFixedExpense(item:ExpenseEntry) {
+    setFixedExpenses(items=>[{...item,id:Date.now(),name:`${item.name} (copia)`},...items]);
+    setNotice("Pago fijo duplicado; puedes editarlo antes de usarlo");
   }
 
   function openSubExpenseForm(groupId:number) { setSubRows([Date.now()]);setExpenseModal({kind:"sub",groupId}); }
@@ -320,7 +326,7 @@ export default function Home() {
         <button role="tab" aria-selected={expenseTab==="monthly"} className={expenseTab==="monthly"?"active":""} onClick={()=>setExpenseTab("monthly")}><CalendarDays size={17}/>Gastos mensuales</button>
         <button role="tab" aria-selected={expenseTab==="groups"} className={expenseTab==="groups"?"active":""} onClick={()=>setExpenseTab("groups")}><Layers3 size={17}/>Por rubro y subgastos</button>
       </div>
-      {expenseTab!=="groups"&&<article className="card module-card expense-list-card"><div className="card-title"><div><h2>{expenseTab==="fixed"?"Pagos que se repiten cada mes":"Gastos variables de este mes"}</h2><p>{expenseTab==="fixed"?"Alquiler, ahorro, pasajes y servicios recurrentes.":"Consumos que pueden cambiar mes a mes."}</p></div></div><div className="expense-rows">{(expenseTab==="fixed"?fixedExpenses:monthlyExpenses).map(item=><div className="expense-row" key={item.id}><div className={`expense-kind-icon ${item.category==="Ahorro"?"saving":""}`}>{categoryIcon(item.category,"expense")}</div><div><strong>{item.name}</strong><span>{item.category} · {expenseTab==="fixed"?"Recurrente mensual":"Julio 2026"}</span></div><strong className="expense-value">S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><button className="add-subexpense" onClick={()=>setDetailedEdit({section:expenseTab,id:item.id})}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeDetailedExpense(expenseTab,item.id)}><Trash2 size={15}/></button></div>)}{(expenseTab==="fixed"?fixedExpenses:monthlyExpenses).length===0&&<div className="empty-state"><ReceiptText/><strong>Aún no tienes gastos en esta sección</strong><span>Usa “Agregar gasto” para registrar el primero.</span></div>}</div></article>}
+      {expenseTab!=="groups"&&<article className="card module-card expense-list-card"><div className="card-title"><div><h2>{expenseTab==="fixed"?"Pagos que se repiten cada mes":"Gastos variables de este mes"}</h2><p>{expenseTab==="fixed"?"Alquiler, ahorro, pasajes y servicios recurrentes.":"Consumos que pueden cambiar mes a mes."}</p></div></div><div className="expense-rows">{(expenseTab==="fixed"?fixedExpenses:monthlyExpenses).map(item=><div className="expense-row" key={item.id}><div className={`expense-kind-icon ${item.category==="Ahorro"?"saving":""}`}>{categoryIcon(item.category,"expense")}</div><div><strong>{item.name}</strong><span>{item.category} · {item.account||"Efectivo"} · {expenseTab==="fixed"?"Recurrente mensual":"Julio 2026"}</span></div><strong className="expense-value">S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>{expenseTab==="fixed"&&<button className="add-subexpense" onClick={()=>duplicateFixedExpense(item)}>Duplicar</button>}<button className="add-subexpense" onClick={()=>setDetailedEdit({section:expenseTab,id:item.id})}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeDetailedExpense(expenseTab,item.id)}><Trash2 size={15}/></button></div>)}{(expenseTab==="fixed"?fixedExpenses:monthlyExpenses).length===0&&<div className="empty-state"><ReceiptText/><strong>Aún no tienes gastos en esta sección</strong><span>Usa “Agregar gasto” para registrar el primero.</span></div>}</div></article>}
       {expenseTab==="groups"&&<section className="expense-groups">{expenseGroups.map(group=>{const total=group.items.reduce((sum,item)=>sum+item.amount,0);const open=openGroups.includes(group.id);return <article className="card expense-group" key={group.id}><div className="expense-group-head"><button className="expense-group-toggle" onClick={()=>setOpenGroups(items=>items.includes(group.id)?items.filter(id=>id!==group.id):[...items,group.id])}><ChevronRight className={open?"open":""} size={18}/><div><strong>{group.name}</strong><span>{group.items.length} subgastos · Presupuesto S/ {group.budget.toLocaleString("es-PE")}</span></div></button><div className="expense-group-total"><span>Total utilizado</span><strong>S/ {total.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong></div><button className="add-subexpense" onClick={()=>editExpenseGroup(group.id)}>Editar</button><button className="add-subexpense" onClick={()=>setExpenseModal({kind:"sub",groupId:group.id})}><Plus size={16}/>Subgasto</button><button className="expense-delete" aria-label={`Eliminar rubro ${group.name}`} onClick={()=>{setExpenseGroups(groups=>groups.filter(item=>item.id!==group.id));setNotice("Rubro eliminado")}}><Trash2 size={15}/></button></div><div className="progress group-progress"><i className={total>group.budget?"danger":""} style={{width:`${Math.min(100,total/group.budget*100)}%`}}/></div>{open&&<div className="subexpense-list">{group.items.map(item=><div className="subexpense-row" key={item.id}><span className="subexpense-dot"/><div><strong>{item.name}</strong><span>{item.category}</span></div><strong>S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><button className="add-subexpense" onClick={()=>editSubExpense(group.id,item.id)}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeSubExpense(group.id,item.id)}><Trash2 size={14}/></button></div>)}{group.items.length===0&&<div className="empty-subexpenses">Este rubro todavía no tiene subgastos.</div>}</div>}</article>})}{expenseGroups.length===0&&<article className="card empty-state group-empty"><Layers3/><strong>Crea tu primer rubro general</strong><span>Por ejemplo: Mercado, Transporte o Estudios.</span></article>}</section>}
     </>;
     if(active==="Presupuestos") return <>
