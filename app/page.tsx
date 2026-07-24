@@ -146,6 +146,14 @@ export default function Home() {
     ...expenseGroups.flatMap(group=>group.items.filter(item=>(item.period??initialPeriod)===activePeriod)),
   ].filter(item=>!transactions.some(transaction=>transaction.kind==="expense"&&transaction.id===item.id)),[fixedExpenses,monthlyExpenses,expenseGroups,transactions,activePeriod]);
   const extraExpenseForPeriod=expenseEntriesForPeriod.reduce((sum,item)=>sum+item.amount,0);
+  // Los gastos creados desde "Gastos" no siempre nacen como una transacción.
+  // Los representamos en el historial sin duplicar los que ya tienen movimiento.
+  const detailedExpenseTransactions=useMemo<Tx[]>(()=>expenseEntriesForPeriod.map(item=>({
+    id:-Math.abs(item.id), title:item.name, category:item.category,
+    account:item.account??"Efectivo", date:"Gasto registrado", amount:item.amount,
+    kind:"expense", period:activePeriod,
+  })),[expenseEntriesForPeriod,activePeriod]);
+  const allPeriodTransactions=useMemo(()=>[...periodTransactions,...detailedExpenseTransactions],[periodTransactions,detailedExpenseTransactions]);
   const extraExpenseAccumulated=useMemo(()=>[
     ...fixedExpenses,...monthlyExpenses,...expenseGroups.flatMap(group=>group.items),
   ].filter(item=>!transactions.some(transaction=>transaction.kind==="expense"&&transaction.id===item.id)).reduce((sum,item)=>sum+item.amount,0),[fixedExpenses,monthlyExpenses,expenseGroups,transactions]);
@@ -159,7 +167,7 @@ export default function Home() {
   }), [transactions,extraExpenseAccumulated]);
   const balance = accumulatedTotals.income - accumulatedTotals.expense;
   const chartMax = Math.max(totals.income, totals.expense, 1000);
-  const visibleTransactions = periodTransactions.filter(t => `${t.title} ${t.category} ${t.account}`.toLowerCase().includes(search.toLowerCase()));
+  const visibleTransactions = allPeriodTransactions.filter(t => `${t.title} ${t.category} ${t.account}`.toLowerCase().includes(search.toLowerCase()));
 
   function addTransaction(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -193,6 +201,15 @@ export default function Home() {
       return next;
     });
     setNotice("Movimiento eliminado");
+  }
+
+  function removeMovement(id:number) {
+    if(id>=0) { removeTransaction(id); return; }
+    const expenseId=-id;
+    setFixedExpenses(items=>items.filter(item=>item.id!==expenseId));
+    setMonthlyExpenses(items=>items.filter(item=>item.id!==expenseId));
+    setExpenseGroups(groups=>groups.map(group=>({...group,items:group.items.filter(item=>item.id!==expenseId)})));
+    setNotice("Gasto eliminado");
   }
 
   function addDetailedExpense(e:React.FormEvent<HTMLFormElement>) {
@@ -315,8 +332,8 @@ export default function Home() {
   function moduleContent() {
     if(active==="Movimientos") return <>
       <ModuleHeading eyebrow="REGISTROS" title="Movimientos" text="Consulta, busca y administra todos tus ingresos y gastos." action={<button className="primary" onClick={()=>setShowModal(true)}><Plus size={18}/>Nuevo movimiento</button>}/>
-      <section className="module-stats"><MiniStat label="Ingresos registrados" value={totals.income} tone="green"/><MiniStat label="Gastos registrados" value={totals.expense} tone="orange"/><MiniStat label="Total de registros" value={periodTransactions.length} plain/></section>
-      <article className="card module-card"><div className="card-title"><div><h2>Historial de {monthNames[selectedMonth]} {selectedYear}</h2><p>{visibleTransactions.length} movimientos encontrados</p></div></div><TransactionList items={visibleTransactions} onDelete={removeTransaction}/></article>
+      <section className="module-stats"><MiniStat label="Ingresos registrados" value={totals.income} tone="green"/><MiniStat label="Gastos registrados" value={totals.expense} tone="orange"/><MiniStat label="Total de registros" value={allPeriodTransactions.length} plain/></section>
+      <article className="card module-card"><div className="card-title"><div><h2>Historial de {monthNames[selectedMonth]} {selectedYear}</h2><p>{visibleTransactions.length} movimientos encontrados</p></div></div><TransactionList items={visibleTransactions} onDelete={removeMovement}/></article>
     </>;
     if(active==="Gastos") return <>
       <ModuleHeading eyebrow="CONTROL DE GASTOS" title="Gastos" text="Organiza tus pagos fijos, consumos mensuales y cada detalle por rubro." action={<button className="primary" onClick={()=>setExpenseModal({kind:expenseTab==="fixed"?"fixed":expenseTab==="monthly"?"monthly":"group"})}><Plus size={18}/>{expenseTab==="groups"?"Nuevo rubro":"Agregar gasto"}</button>}/>
@@ -400,7 +417,7 @@ export default function Home() {
 
           <article className="card transactions-card">
             <div className="card-title"><div><h2>Últimos movimientos</h2><p>Tus transacciones más recientes</p></div><button onClick={()=>setActive("Movimientos")}>Ver todos <span>→</span></button></div>
-            <div className="tx-list">{visibleTransactions.slice(0,6).map(t=><div className="tx" key={t.id}><div className={`tx-icon ${t.kind}`}>{categoryIcon(t.category,t.kind)}</div><div className="tx-main"><strong>{t.title}</strong><span>{t.category} · {t.account}</span></div><div className="tx-date">{t.date}</div><div className={`tx-amount ${t.kind}`}>{t.kind==="income"?"+":"−"} S/ {t.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</div><button className="delete-tx" aria-label={`Eliminar ${t.title}`} onClick={()=>{setTransactions(p=>{const next=p.filter(x=>x.id!==t.id);localStorage.setItem("finanza-transactions",JSON.stringify(next));return next});setNotice("Movimiento eliminado")}}><Trash2 size={14}/></button></div>)}{visibleTransactions.length===0&&<div className="empty-state"><Search size={22}/><strong>No encontramos movimientos</strong><span>Prueba con otra palabra.</span></div>}</div>
+            <div className="tx-list">{visibleTransactions.slice(0,6).map(t=><div className="tx" key={t.id}><div className={`tx-icon ${t.kind}`}>{categoryIcon(t.category,t.kind)}</div><div className="tx-main"><strong>{t.title}</strong><span>{t.category} · {t.account}</span></div><div className="tx-date">{t.date}</div><div className={`tx-amount ${t.kind}`}>{t.kind==="income"?"+":"−"} S/ {t.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</div><button className="delete-tx" aria-label={`Eliminar ${t.title}`} onClick={()=>removeMovement(t.id)}><Trash2 size={14}/></button></div>)}{visibleTransactions.length===0&&<div className="empty-state"><Search size={22}/><strong>No encontramos movimientos</strong><span>Prueba con otra palabra.</span></div>}</div>
           </article>
 
           <article className="card goal-card">
