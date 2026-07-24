@@ -73,6 +73,7 @@ export default function Home() {
   const [subRows, setSubRows] = useState<number[]>([1]);
   const [subCategories, setSubCategories] = useState<Record<number,string>>({});
   const [subSavingDestinations, setSubSavingDestinations] = useState<Record<number,"general"|number>>({});
+  const [subAmounts, setSubAmounts] = useState<Record<number,string>>({});
   const [expenseEdit, setExpenseEdit] = useState<ExpenseEdit>(null);
   const [detailedEdit, setDetailedEdit] = useState<{section:"fixed"|"monthly";id:number}|null>(null);
   const [openGroups, setOpenGroups] = useState<number[]>([301]);
@@ -158,6 +159,10 @@ export default function Home() {
     return ()=>window.clearTimeout(timer);
   },[transactions,savings,savingsGoals,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories,ready,syncStatus]);
   const activePeriod=`${selectedYear}-${String(selectedMonth+1).padStart(2,"0")}`;
+  const activeSubGroup=expenseModal?.kind==="sub"?expenseGroups.find(group=>group.id===expenseModal.groupId):undefined;
+  const currentSubTotal=activeSubGroup?.items.reduce((sum,item)=>sum+item.amount,0)??0;
+  const draftSubTotal=subRows.reduce((sum,row)=>sum+(Number(subAmounts[row])||0),0);
+  const subAmountLimitExceeded=Boolean(activeSubGroup&&currentSubTotal+draftSubTotal>activeSubGroup.budget);
   const periodTransactions = useMemo(() => transactions.filter(t=>(t.period??initialPeriod)===activePeriod),[transactions,activePeriod]);
   const expenseEntriesForPeriod=useMemo(()=>[
     ...fixedExpenses.map(item=>({item,source:"fixed" as const})),
@@ -282,13 +287,16 @@ export default function Home() {
     if(expenseModal.kind==="sub"&&expenseModal.groupId) {
       const names=fd.getAll("name").map(value=>String(value).trim());const amounts=fd.getAll("amount").map(value=>Number(value));const rowCategories=fd.getAll("category").map(value=>String(value));
       const entries=names.map((entry,index)=>({id:id+index,name:entry,category:rowCategories[index]||"Otros",amount:amounts[index],account,period:activePeriod,savingDestination:rowCategories[index]==="Ahorro"?(subSavingDestinations[subRows[index]]??"general"):undefined})).filter(entry=>entry.name&&Number.isFinite(entry.amount)&&entry.amount>0);
+      const group=expenseGroups.find(item=>item.id===expenseModal.groupId);
+      const used=group?.items.reduce((sum,item)=>sum+item.amount,0)??0;
+      if(group&&used+entries.reduce((sum,item)=>sum+item.amount,0)>group.budget) { setNotice(`Excedes el monto definido por S/ ${(used+entries.reduce((sum,item)=>sum+item.amount,0)-group.budget).toLocaleString("es-PE",{minimumFractionDigits:2})}`); return; }
       setExpenseGroups(groups=>groups.map(group=>group.id===expenseModal.groupId?{...group,items:[...group.items,...entries]}:group));
       setOpenGroups(groups=>groups.includes(expenseModal.groupId!)?groups:[...groups,expenseModal.groupId!]);
       const generalContribution=entries.filter(entry=>entry.category==="Ahorro"&&entry.savingDestination==="general").reduce((sum,entry)=>sum+entry.amount,0);
       if(generalContribution) setSavings(value=>value+generalContribution);
       for(const entry of entries.filter(entry=>entry.category==="Ahorro"&&typeof entry.savingDestination==="number")) setSavingsGoals(goals=>goals.map(goal=>goal.id===entry.savingDestination?{...goal,amount:Math.min(goal.target,goal.amount+entry.amount)}:goal));
     }
-    setExpenseModal(null);setSubRows([1]);setSubCategories({});setSubSavingDestinations({});
+    setExpenseModal(null);setSubRows([1]);setSubCategories({});setSubSavingDestinations({});setSubAmounts({});
     setNotice(expenseModal.kind==="group"?"Detalle de categoría creado correctamente":"Gasto registrado correctamente");
   }
 
