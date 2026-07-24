@@ -13,6 +13,7 @@ type ExpenseEdit = { kind:"group"; groupId:number } | { kind:"sub"; groupId:numb
 type Profile = { fullName:string; currency:string };
 type Budget = { id:number; name:string; limit:number; color:string };
 type MonthAccess = { year:number; month:number };
+type SavingsGoal = { id:number; name:string; target:number; amount:number };
 
 const seed: Tx[] = [];
 const fixedSeed: ExpenseEntry[] = [];
@@ -59,6 +60,9 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
   const [savings, setSavings] = useState(0);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
+  const [showSavingGoalModal, setShowSavingGoalModal] = useState(false);
+  const [savingContributionTarget, setSavingContributionTarget] = useState<"general"|number|null>(null);
   const [expenseTab, setExpenseTab] = useState<"fixed"|"monthly"|"groups">("fixed");
   const [fixedExpenses, setFixedExpenses] = useState<ExpenseEntry[]>(fixedSeed);
   const [monthlyExpenses, setMonthlyExpenses] = useState<ExpenseEntry[]>(monthlySeed);
@@ -83,16 +87,18 @@ export default function Home() {
   const [syncStatus, setSyncStatus] = useState<"loading"|"synced"|"local"|"setup">("loading");
   useEffect(()=>{
     async function hydrate() {
-      let local:{transactions:Tx[];savings:number;fixedExpenses:ExpenseEntry[];monthlyExpenses:ExpenseEntry[];expenseGroups:ExpenseGroup[];profile:Profile;budgets:Budget[];monthAccess:MonthAccess;categories:string[];incomeCategories:string[]}={transactions:seed,savings:0,fixedExpenses:fixedSeed,monthlyExpenses:monthlySeed,expenseGroups:groupSeed,profile:{fullName:"Mi perfil",currency:"PEN"},budgets:[],monthAccess:{year:2026,month:7},categories:defaultCategories,incomeCategories:defaultIncomeCategories};
+      let local:{transactions:Tx[];savings:number;savingsGoals:SavingsGoal[];fixedExpenses:ExpenseEntry[];monthlyExpenses:ExpenseEntry[];expenseGroups:ExpenseGroup[];profile:Profile;budgets:Budget[];monthAccess:MonthAccess;categories:string[];incomeCategories:string[]}={transactions:seed,savings:0,savingsGoals:[],fixedExpenses:fixedSeed,monthlyExpenses:monthlySeed,expenseGroups:groupSeed,profile:{fullName:"Mi perfil",currency:"PEN"},budgets:[],monthAccess:{year:2026,month:7},categories:defaultCategories,incomeCategories:defaultIncomeCategories};
       try {
         const saved = localStorage.getItem("finanza-transactions");
         const savedSavings = localStorage.getItem("finanza-savings");
+        const savedSavingsGoals = localStorage.getItem("finanza-savings-goals");
         const savedFixed = localStorage.getItem("finanza-fixed-expenses");
         const savedMonthly = localStorage.getItem("finanza-monthly-expenses");
         const savedGroups = localStorage.getItem("finanza-expense-groups");
         const savedSettings = localStorage.getItem("finanza-settings");
         if(saved) local.transactions=JSON.parse(saved);
         if(savedSavings) local.savings=Number(savedSavings);
+        if(savedSavingsGoals) local.savingsGoals=JSON.parse(savedSavingsGoals);
         if(savedFixed) local.fixedExpenses=JSON.parse(savedFixed);
         if(savedMonthly) local.monthlyExpenses=JSON.parse(savedMonthly);
         if(savedGroups) local.expenseGroups=JSON.parse(savedGroups);
@@ -105,6 +111,7 @@ export default function Home() {
           if(remote) source={
             transactions:Array.isArray(remote.transactions)?(remote.transactions as Tx[]).filter(item=>!demoTransactionIds.has(Number(item.id))).map(item=>({...item,period:item.period??initialPeriod})):local.transactions,
             savings:remote.savings===3200||remote.savings===3300?0:typeof remote.savings==="number"?remote.savings:local.savings,
+            savingsGoals:Array.isArray(remote.savingsGoals)?remote.savingsGoals as SavingsGoal[]:local.savingsGoals,
             fixedExpenses:Array.isArray(remote.fixedExpenses)?(remote.fixedExpenses as ExpenseEntry[]).filter(item=>!demoFixedExpenseIds.has(Number(item.id))):local.fixedExpenses,
             monthlyExpenses:Array.isArray(remote.monthlyExpenses)?(remote.monthlyExpenses as ExpenseEntry[]).filter(item=>!demoMonthlyExpenseIds.has(Number(item.id))).map(item=>({...item,period:item.period??initialPeriod})):local.monthlyExpenses,
             expenseGroups:Array.isArray(remote.expenseGroups)?(remote.expenseGroups as ExpenseGroup[]).filter(item=>!demoGroupIds.has(Number(item.id))):local.expenseGroups,
@@ -114,11 +121,11 @@ export default function Home() {
             categories:Array.isArray(remote.categories)?remote.categories as string[]:local.categories,
             incomeCategories:Array.isArray(remote.incomeCategories)?remote.incomeCategories as string[]:local.incomeCategories,
           };
-          else source={transactions:seed,savings:0,fixedExpenses:fixedSeed,monthlyExpenses:monthlySeed,expenseGroups:groupSeed,profile:local.profile,budgets:[],monthAccess:local.monthAccess,categories:local.categories,incomeCategories:local.incomeCategories};
+          else source={transactions:seed,savings:0,savingsGoals:[],fixedExpenses:fixedSeed,monthlyExpenses:monthlySeed,expenseGroups:groupSeed,profile:local.profile,budgets:[],monthAccess:local.monthAccess,categories:local.categories,incomeCategories:local.incomeCategories};
           setSyncStatus("synced");
         } catch { setSyncStatus("setup"); }
       } else setSyncStatus("local");
-      setTransactions(source.transactions);setSavings(source.savings);setFixedExpenses(source.fixedExpenses);setMonthlyExpenses(source.monthlyExpenses);setExpenseGroups(source.expenseGroups);setProfile(source.profile);setBudgets(source.budgets);setMonthAccess(source.monthAccess);setCategories(source.categories);setIncomeCategories(source.incomeCategories);
+      setTransactions(source.transactions);setSavings(source.savings);setSavingsGoals(source.savingsGoals);setFixedExpenses(source.fixedExpenses);setMonthlyExpenses(source.monthlyExpenses);setExpenseGroups(source.expenseGroups);setProfile(source.profile);setBudgets(source.budgets);setMonthAccess(source.monthAccess);setCategories(source.categories);setIncomeCategories(source.incomeCategories);
       setReady(true);
     }
     void hydrate();
@@ -127,8 +134,9 @@ export default function Home() {
     if(ready){
       localStorage.setItem("finanza-transactions", JSON.stringify(transactions));
       localStorage.setItem("finanza-savings", String(savings));
+      localStorage.setItem("finanza-savings-goals", JSON.stringify(savingsGoals));
     }
-  },[transactions,savings,ready]);
+  },[transactions,savings,savingsGoals,ready]);
   useEffect(()=>{
     if(ready){
       localStorage.setItem("finanza-fixed-expenses",JSON.stringify(fixedExpenses));
@@ -140,11 +148,11 @@ export default function Home() {
   useEffect(()=>{
     if(!ready||!isSupabaseConfigured||syncStatus==="setup") return;
     const timer=window.setTimeout(()=>{
-      const data={transactions,savings,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories,periodVersion:2};
+      const data={transactions,savings,savingsGoals,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories,periodVersion:2};
       void Promise.all([saveSupabaseState(data),syncSupabaseTables(data)]).then(()=>setSyncStatus("synced")).catch(()=>setSyncStatus("setup"));
     },500);
     return ()=>window.clearTimeout(timer);
-  },[transactions,savings,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories,ready,syncStatus]);
+  },[transactions,savings,savingsGoals,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories,ready,syncStatus]);
   const activePeriod=`${selectedYear}-${String(selectedMonth+1).padStart(2,"0")}`;
   const periodTransactions = useMemo(() => transactions.filter(t=>(t.period??initialPeriod)===activePeriod),[transactions,activePeriod]);
   const expenseEntriesForPeriod=useMemo(()=>[
@@ -196,11 +204,26 @@ export default function Home() {
 
   function changeSavings(amount:number) {
     setSavings(value => {
-      const next = Math.max(0, Math.min(5400, value + amount));
+      const next = Math.max(0, value + amount);
       localStorage.setItem("finanza-savings", String(next));
       return next;
     });
-    setNotice(amount > 0 ? `Se agregaron S/ ${amount} a tu ahorro` : `Se retiraron S/ ${Math.abs(amount)} del ahorro`);
+    setNotice(amount > 0 ? `Se agregaron S/ ${amount} a tu ahorro general` : `Se retiraron S/ ${Math.abs(amount)} del ahorro general`);
+  }
+
+  function createSavingsGoal(e:React.FormEvent<HTMLFormElement>) {
+    e.preventDefault(); const fd=new FormData(e.currentTarget); const name=String(fd.get("name")||"").trim(); const target=Number(fd.get("target")||0); const amount=Number(fd.get("amount")||0);
+    if(!name||!Number.isFinite(target)||target<=0||!Number.isFinite(amount)||amount<0) { setNotice("Completa la meta correctamente"); return; }
+    setSavingsGoals(items=>[...items,{id:Date.now(),name,target,amount:Math.min(amount,target)}]);setShowSavingGoalModal(false);setNotice("Meta de ahorro creada");
+  }
+
+  function contributeToSaving(e:React.FormEvent<HTMLFormElement>) {
+    e.preventDefault(); if(savingContributionTarget===null) return; const fd=new FormData(e.currentTarget); const amount=Number(fd.get("amount")||0); const operation=String(fd.get("operation")||"add");
+    if(!Number.isFinite(amount)||amount<=0) { setNotice("Ingresa un monto válido"); return; }
+    const delta=operation==="withdraw"?-amount:amount;
+    if(savingContributionTarget==="general") changeSavings(delta);
+    else setSavingsGoals(items=>items.map(goal=>goal.id===savingContributionTarget?{...goal,amount:Math.max(0,Math.min(goal.target,goal.amount+delta))}:goal));
+    setSavingContributionTarget(null);setNotice(operation==="withdraw"?"Retiro registrado":"Aporte registrado");
   }
 
   function removeTransaction(id:number) {
@@ -367,8 +390,9 @@ export default function Home() {
       {expenseTab==="groups"&&<section className="expense-groups">{expenseGroups.map(group=>{const total=group.items.reduce((sum,item)=>sum+item.amount,0);const open=openGroups.includes(group.id);return <article className="card expense-group" key={group.id}><div className="expense-group-head"><button className="expense-group-toggle" onClick={()=>setOpenGroups(items=>items.includes(group.id)?items.filter(id=>id!==group.id):[...items,group.id])}><ChevronRight className={open?"open":""} size={18}/><div><strong>{group.name}</strong><span>{group.items.length} subgastos · Monto definido S/ {group.budget.toLocaleString("es-PE")}</span></div></button><div className="expense-group-total"><span>Detalle registrado</span><strong>S/ {total.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong></div><button className="add-subexpense" onClick={()=>editExpenseGroup(group.id)}>Editar</button><button className="add-subexpense" onClick={()=>setExpenseModal({kind:"sub",groupId:group.id})}><Plus size={16}/>Subgasto</button><button className="expense-delete" aria-label={`Eliminar categoría ${group.name}`} onClick={()=>{setExpenseGroups(groups=>groups.filter(item=>item.id!==group.id));setNotice("Detalle de categoría eliminado")}}><Trash2 size={15}/></button></div><div className="progress group-progress"><i className={total>group.budget?"danger":""} style={{width:`${Math.min(100,total/group.budget*100)}%`}}/></div>{open&&<div className="subexpense-list">{group.items.map(item=><div className="subexpense-row" key={item.id}><span className="subexpense-dot"/><div><strong>{item.name}</strong><span>{item.category}</span></div><strong>S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><button className="add-subexpense" onClick={()=>editSubExpense(group.id,item.id)}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeSubExpense(group.id,item.id)}><Trash2 size={14}/></button></div>)}{group.items.length===0&&<div className="empty-subexpenses">Esta categoría todavía no tiene subgastos.</div>}</div>}</article>})}{expenseGroups.length===0&&<article className="card empty-state group-empty"><Layers3/><strong>Activa el detalle de tu primera categoría</strong><span>Las categorías se crean desde Configuración.</span></article>}</section>}
     </>;
     if(active==="Metas de ahorro") return <>
-      <ModuleHeading eyebrow="PLAN DE AHORRO" title="Metas de ahorro" text="Crea una meta con tu propio monto y fecha objetivo."/>
-      <article className="card empty-state group-empty"><Target/><strong>Aún no tienes una meta de ahorro</strong><span>Cuando la crees, aquí verás su avance y próximos hitos reales.</span></article>
+      <ModuleHeading eyebrow="PLAN DE AHORRO" title="Ahorros" text="Separa tu reserva general de los montos destinados a una meta." action={<button className="primary" onClick={()=>setShowSavingGoalModal(true)}><Plus size={18}/>Nueva meta</button>}/>
+      <section className="savings-layout"><article className="card savings-main"><div className="savings-hero"><div className="metric-icon purple"><PiggyBank/></div><div><span>Ahorro general</span><strong>S/ {savings.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><small>Reserva sin destino específico.</small></div></div><div className="goal-tip"><Target size={20}/><div><strong>Dinero disponible para tu tranquilidad</strong><span>No tiene fecha ni objetivo; puedes aportar o retirar cuando lo necesites.</span></div></div><div className="saving-actions"><button onClick={()=>setSavingContributionTarget("general")}>Registrar movimiento</button></div></article><article className="card saving-tip"><PiggyBank/><h2>Metas específicas</h2><strong>{savingsGoals.length}</strong><p>Separa lo que estás guardando para una compra, viaje o cualquier objetivo.</p></article></section>
+      <section className="savings-goal-grid">{savingsGoals.map(goal=>{const percent=Math.min(100,Math.round(goal.amount/goal.target*100));return <article className="card savings-goal" key={goal.id}><div className="card-title"><div><span>Meta específica</span><h2>{goal.name}</h2></div><button className="expense-delete" aria-label={`Eliminar ${goal.name}`} onClick={()=>setSavingsGoals(items=>items.filter(item=>item.id!==goal.id))}><Trash2 size={14}/></button></div><div className="goal-amount"><strong>S/ {goal.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><span>de S/ {goal.target.toLocaleString("es-PE",{minimumFractionDigits:2})}</span></div><div className="progress"><i style={{width:`${percent}%`}}/></div><div className="goal-row"><span>{percent}% completado</span><strong>Faltan S/ {Math.max(0,goal.target-goal.amount).toLocaleString("es-PE",{minimumFractionDigits:2})}</strong></div><button className="outline" onClick={()=>setSavingContributionTarget(goal.id)}>Registrar aporte o retiro</button></article>})}{savingsGoals.length===0&&<article className="card empty-state group-empty"><Target/><strong>Aún no tienes metas específicas</strong><span>Crea una para laptop, viaje, emergencia o cualquier propósito.</span></article>}</section>
     </>;
     if(active==="Reportes") return <>
       <ModuleHeading eyebrow="ANÁLISIS" title="Reportes" text="Revisa el comportamiento de tus finanzas con datos actualizados." action={<button onClick={()=>setNotice("Reporte preparado con los datos actuales")}><TrendingUp size={18}/>Generar reporte</button>}/>
@@ -413,7 +437,7 @@ export default function Home() {
           <Metric label="Balance total" value={balance} delta="Datos reales" icon={<WalletCards/>} tone="blue" />
           <Metric label="Ingresos" value={totals.income} delta="Datos reales" icon={<ArrowDownLeft/>} tone="green" />
           <Metric label="Gastos" value={totals.expense} delta="Datos reales" icon={<ArrowUpRight/>} tone="orange" />
-          <Metric label="Ahorro del mes" value={savings} delta={`${Math.min(100,Math.round(savings/5400*100))}% de tu meta`} icon={<PiggyBank/>} tone="purple" progress={Math.min(100,Math.round(savings/5400*100))}/>
+          <Metric label="Ahorro total" value={savings+savingsGoals.reduce((sum,goal)=>sum+goal.amount,0)} delta="Reserva general y metas" icon={<PiggyBank/>} tone="purple"/>
         </section>
 
         <section className="dashboard-grid">
@@ -437,12 +461,12 @@ export default function Home() {
           </article>
 
           <article className="card goal-card">
-            <div className="card-title"><div><h2>Meta de ahorro</h2><p>Fondo de emergencia</p></div><button className="dots"><MoreHorizontal/></button></div>
-            <div className="goal-amount"><strong>S/ {savings.toLocaleString("es-PE")}</strong><span>de S/ 5,400</span></div><div className="progress"><i style={{width:`${Math.min(100,savings/5400*100)}%`}}/></div><div className="goal-row"><span>{Math.min(100,Math.round(savings/5400*100))}% completado</span><strong>Faltan S/ {Math.max(0,5400-savings).toLocaleString("es-PE")}</strong></div><div className="goal-tip"><Target size={20}/><div><strong>¡Vas por buen camino!</strong><span>Agrega aportes y observa cómo avanza tu meta.</span></div></div><button className="outline" onClick={()=>{setSavings(v=>{const next=Math.min(5400,v+100);localStorage.setItem("finanza-savings",String(next));return next});setNotice("Se agregaron S/ 100 a tu ahorro")}}>+ Agregar S/ 100</button>
+            <div className="card-title"><div><h2>Ahorro general</h2><p>Reserva sin una meta específica</p></div><button className="dots"><MoreHorizontal/></button></div>
+            <div className="goal-amount"><strong>S/ {savings.toLocaleString("es-PE")}</strong></div><div className="goal-tip"><Target size={20}/><div><strong>Tu reserva disponible</strong><span>Este dinero no está comprometido con ninguna meta y puedes usarlo cuando sea necesario.</span></div></div><button className="outline" onClick={()=>setSavingContributionTarget("general")}>Registrar movimiento</button>
           </article>
         </section>
 
-        <section className="accounts"><div className="section-heading"><div><h2>Mis cuentas</h2><p>Conecta y controla todo desde un solo lugar.</p></div><button onClick={()=>setNotice("Conexión bancaria lista para configurar con APIs oficiales")}><Plus size={17}/>Conectar cuenta</button></div><article className="card empty-state"><Landmark/><strong>Aún no hay cuentas conectadas</strong><span>Cuando agregues una, aparecerá aquí con su saldo real.</span></article><button className="reset-demo" onClick={()=>{setTransactions(seed);setSavings(0);setFixedExpenses(fixedSeed);setMonthlyExpenses(monthlySeed);setExpenseGroups(groupSeed);setSearch("");localStorage.setItem("finanza-transactions",JSON.stringify(seed));localStorage.setItem("finanza-savings","0");localStorage.setItem("finanza-fixed-expenses",JSON.stringify(fixedSeed));localStorage.setItem("finanza-monthly-expenses",JSON.stringify(monthlySeed));localStorage.setItem("finanza-expense-groups",JSON.stringify(groupSeed));setNotice("Datos vacíos restaurados")}}>Limpiar datos de prueba</button></section>
+        <section className="accounts"><div className="section-heading"><div><h2>Mis cuentas</h2><p>Conecta y controla todo desde un solo lugar.</p></div><button onClick={()=>setNotice("Conexión bancaria lista para configurar con APIs oficiales")}><Plus size={17}/>Conectar cuenta</button></div><article className="card empty-state"><Landmark/><strong>Aún no hay cuentas conectadas</strong><span>Cuando agregues una, aparecerá aquí con su saldo real.</span></article><button className="reset-demo" onClick={()=>{setTransactions(seed);setSavings(0);setSavingsGoals([]);setFixedExpenses(fixedSeed);setMonthlyExpenses(monthlySeed);setExpenseGroups(groupSeed);setSearch("");localStorage.setItem("finanza-transactions",JSON.stringify(seed));localStorage.setItem("finanza-savings","0");localStorage.setItem("finanza-savings-goals","[]");localStorage.setItem("finanza-fixed-expenses",JSON.stringify(fixedSeed));localStorage.setItem("finanza-monthly-expenses",JSON.stringify(monthlySeed));localStorage.setItem("finanza-expense-groups",JSON.stringify(groupSeed));setNotice("Datos vacíos restaurados")}}>Limpiar datos de prueba</button></section>
         </>}
       </div>
     </main>
@@ -451,6 +475,8 @@ export default function Home() {
     {expenseModal&&<div className="modal-backdrop" onMouseDown={()=>setExpenseModal(null)}><form className="modal" onSubmit={addDetailedExpense} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{expenseModal.kind==="group"?"Activar detalle por categoría":expenseModal.kind==="sub"?"Agregar subgastos":expenseModal.kind==="fixed"?"Nuevo gasto fijo":"Nuevo gasto mensual"}</h2><p>{expenseModal.kind==="group"?"Escribe una categoría existente. Las categorías se administran únicamente en Configuración.":expenseModal.kind==="sub"?"Añade varias compras a esta categoría antes de guardar.":"Registra el concepto y su monto."}</p></div><button type="button" onClick={()=>setExpenseModal(null)}><X/></button></div>{expenseModal.kind==="sub"?<><div className="card-title"><div><h2>Detalle de subgastos</h2><p>{subRows.length} filas listas para registrar.</p></div><button type="button" className="add-subexpense" onClick={()=>setSubRows(rows=>[...rows,Date.now()+rows.length])}><Plus size={16}/>Agregar fila</button></div><label>Cuenta para estos subgastos<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>{subRows.map((row,index)=><div className="form-row" key={row}><label>Descripción<input name="name" required autoFocus={index===0} placeholder="Ej. Mandarina"/></label><label>Categoría<select name="category">{categories.map(category=><option key={category}>{category}</option>)}</select></label><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" placeholder="0.00"/></label>{subRows.length>1&&<button type="button" className="expense-delete" onClick={()=>setSubRows(rows=>rows.filter(item=>item!==row))}><Trash2 size={15}/></button>}</div>)}</>:<><label>{expenseModal.kind==="group"?"Categoría existente":"Descripción"}<input name="name" required autoFocus placeholder={expenseModal.kind==="group"?"Ej. Alimentación":"Ej. Alquiler"}/></label>{expenseModal.kind!=="group"&&<label>Categoría<select name="category">{categories.map(category=><option key={category}>{category}</option>)}</select></label>}<label>{expenseModal.kind==="group"?"Presupuesto mensual (S/)":"Monto (S/)"}<input name="amount" required type="number" min="0.01" step="0.01" placeholder="0.00"/></label>{expenseModal.kind!=="group"&&<label>Cuenta<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>}</>}<div className="modal-actions"><button type="button" onClick={()=>setExpenseModal(null)}>Cancelar</button><button className="primary" type="submit">{expenseModal.kind==="group"?"Activar detalle":expenseModal.kind==="sub"?`Guardar ${subRows.length} subgasto${subRows.length===1?"":"s"}`:"Guardar gasto"}</button></div></form></div>}
     {expenseEdit&&(()=>{const group=expenseGroups.find(item=>item.id===expenseEdit.groupId);const item=expenseEdit.kind==="sub"?group?.items.find(entry=>entry.id===expenseEdit.itemId):undefined;if(!group||expenseEdit.kind==="sub"&&!item)return null;const isGroup=expenseEdit.kind==="group";return <div className="modal-backdrop" onMouseDown={()=>setExpenseEdit(null)}><form className="modal" onSubmit={saveExpenseEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{isGroup?"Editar rubro":"Editar subgasto"}</h2><p>{isGroup?"Actualiza el nombre y el presupuesto. Los subgastos se conservan.":`Dentro del rubro ${group.name}.`}</p></div><button type="button" onClick={()=>setExpenseEdit(null)}><X/></button></div><label>{isGroup?"Nombre del rubro":"Descripción"}<input name="name" required autoFocus defaultValue={isGroup?group.name:item!.name}/></label>{!isGroup&&<label>Categoría<select name="category" defaultValue={item!.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label>}<label>{isGroup?"Presupuesto mensual (S/)":"Monto (S/)"}<input name="amount" required type="number" min="0" step="0.01" defaultValue={isGroup?group.budget:item!.amount}/></label><div className="module-callout"><ReceiptText/><div><strong>{isGroup?`${group.items.length} subgastos registrados`:`Periodo: ${monthNames[selectedMonth]} ${selectedYear}`}</strong><span>{isGroup?`Total usado actualmente: S/ ${group.items.reduce((sum,entry)=>sum+entry.amount,0).toLocaleString("es-PE",{minimumFractionDigits:2})}`:`Valor actual: S/ ${item!.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</span></div></div><div className="modal-actions"><button type="button" onClick={()=>setExpenseEdit(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
     {detailedEdit&&(()=>{const item=(detailedEdit.section==="fixed"?fixedExpenses:monthlyExpenses).find(entry=>entry.id===detailedEdit.id);if(!item)return null;return <div className="modal-backdrop" onMouseDown={()=>setDetailedEdit(null)}><form className="modal" onSubmit={saveDetailedEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Editar {detailedEdit.section==="fixed"?"gasto fijo":"gasto mensual"}</h2><p>Actualiza los datos sin perder el registro.</p></div><button type="button" onClick={()=>setDetailedEdit(null)}><X/></button></div><label>Descripción<input name="name" required autoFocus defaultValue={item.name}/></label><label>Categoría<select name="category" defaultValue={item.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><label>Monto (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={item.amount}/></label><div className="modal-actions"><button type="button" onClick={()=>setDetailedEdit(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
+    {showSavingGoalModal&&<div className="modal-backdrop" onMouseDown={()=>setShowSavingGoalModal(false)}><form className="modal" onSubmit={createSavingsGoal} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nueva meta de ahorro</h2><p>Define para qué ahorrarás y cuánto necesitas reunir.</p></div><button type="button" onClick={()=>setShowSavingGoalModal(false)}><X/></button></div><label>Nombre de la meta<input name="name" required autoFocus placeholder="Ej. Laptop"/></label><div className="form-row"><label>Monto objetivo (S/)<input name="target" required type="number" min="0.01" step="0.01" placeholder="3000"/></label><label>Aporte inicial (S/)<input name="amount" type="number" min="0" step="0.01" defaultValue="0"/></label></div><div className="modal-actions"><button type="button" onClick={()=>setShowSavingGoalModal(false)}>Cancelar</button><button className="primary" type="submit">Crear meta</button></div></form></div>}
+    {savingContributionTarget!==null&&<div className="modal-backdrop" onMouseDown={()=>setSavingContributionTarget(null)}><form className="modal" onSubmit={contributeToSaving} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Movimiento de ahorro</h2><p>{savingContributionTarget==="general"?"Ahorro general sin destino específico.":`Meta: ${savingsGoals.find(goal=>goal.id===savingContributionTarget)?.name??""}`}</p></div><button type="button" onClick={()=>setSavingContributionTarget(null)}><X/></button></div><label>Operación<select name="operation"><option value="add">Agregar aporte</option><option value="withdraw">Retirar dinero</option></select></label><label>Monto (S/)<input name="amount" required autoFocus type="number" min="0.01" step="0.01" placeholder="0.00"/></label><div className="modal-actions"><button type="button" onClick={()=>setSavingContributionTarget(null)}>Cancelar</button><button className="primary" type="submit">Guardar movimiento</button></div></form></div>}
     {showBudgetModal&&<div className="modal-backdrop" onMouseDown={()=>setShowBudgetModal(false)}><form className="modal" onSubmit={addBudget} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nuevo presupuesto</h2><p>Define el límite mensual de un rubro.</p></div><button type="button" onClick={()=>setShowBudgetModal(false)}><X/></button></div><label>Rubro<input name="name" required autoFocus placeholder="Ej. Alimentación"/></label><label>Límite mensual (S/)<input name="limit" required type="number" min="0.01" step="0.01" placeholder="0.00"/></label><label>Color<select name="color"><option value="purple">Morado</option><option value="blue">Azul</option><option value="orange">Naranja</option><option value="teal">Verde</option></select></label><div className="modal-actions"><button type="button" onClick={()=>setShowBudgetModal(false)}>Cancelar</button><button className="primary" type="submit">Crear presupuesto</button></div></form></div>}
     {notice&&<div className="toast">✓ {notice}</div>}
   </div>
