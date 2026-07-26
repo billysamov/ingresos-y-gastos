@@ -1,7 +1,20 @@
 type StoredState = Record<string, unknown>;
 
-const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? import.meta.env?.VITE_SUPABASE_URL)?.replace(/\/$/, "");
-const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY;
+const metaEnv = (typeof import.meta !== "undefined" ? (import.meta as unknown as { env?: Record<string, string> }).env : undefined) ?? {};
+const procEnv = (typeof process !== "undefined" ? (process.env as Record<string, string | undefined>) : undefined) ?? {};
+
+const supabaseUrl = (
+  metaEnv.VITE_SUPABASE_URL ||
+  metaEnv.NEXT_PUBLIC_SUPABASE_URL ||
+  procEnv.NEXT_PUBLIC_SUPABASE_URL ||
+  procEnv.VITE_SUPABASE_URL
+)?.replace(/\/$/, "");
+
+const publishableKey =
+  metaEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  metaEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  procEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  procEnv.VITE_SUPABASE_PUBLISHABLE_KEY;
 const stateId = "finanza-personal";
 const profileId = "00000000-0000-4000-8000-000000000001";
 
@@ -47,7 +60,7 @@ type TransactionInput={title:string;category:string;account:string;date:string;a
 type ExpenseInput={name:string;category:string;amount:number};
 type GroupInput={name:string;budget:number;items:ExpenseInput[]};
 
-export async function syncSupabaseTables(data:{transactions:TransactionInput[];savings:number;fixedExpenses:ExpenseInput[];monthlyExpenses:ExpenseInput[];expenseGroups:GroupInput[];profile:{fullName:string;currency:string}}) {
+export async function syncSupabaseTables(data:{transactions:TransactionInput[];savings:number;fixedExpenses:ExpenseInput[];monthlyExpenses:ExpenseInput[];expenseGroups:GroupInput[];profile:{fullName:string;currency:string;monthlySalary?:number;autoRegisterSalary?:boolean}}) {
   if(!isSupabaseConfigured) return;
   const profileFilter=`?profile_id=eq.${profileId}`;
   await tableRequest("transactions","DELETE",undefined,profileFilter);
