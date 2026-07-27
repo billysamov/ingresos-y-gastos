@@ -586,7 +586,7 @@ export default function Home() {
   const dashboardCategories=Object.entries(expenseByCategory).sort((a,b)=>b[1]-a[1]);
   const dashboardPalette=["#8957da","#1767e8","#ff9148","#35bdb4","#ed5d92","#d3a336","#6476d9","#8492a6"];
   const dashboardCategoryTotal=dashboardCategories.reduce((sum,[,value])=>sum+value,0);
-  const dashboardDonut=dashboardCategoryTotal?`conic-gradient(${dashboardCategories.filter(([,value])=>value>0).map(([name,value,index)=>`${dashboardPalette[index%dashboardPalette.length]} ${dashboardCategories.filter(([,amount])=>amount>0).slice(0,index).reduce((sum,[,amount])=>sum+amount/dashboardCategoryTotal*100,0)}% ${dashboardCategories.filter(([,amount])=>amount>0).slice(0,index+1).reduce((sum,[,amount])=>sum+amount/dashboardCategoryTotal*100,0)}%`).join(",")})`:"conic-gradient(#edf0f5 0 100%)";
+  const dashboardDonut=dashboardCategoryTotal?`conic-gradient(${dashboardCategories.filter(([,value])=>value>0).map(([name,value],index)=>`${dashboardPalette[index%dashboardPalette.length]} ${dashboardCategories.filter(([,amount])=>amount>0).slice(0,index).reduce((sum,[,amount])=>sum+amount/dashboardCategoryTotal*100,0)}% ${dashboardCategories.filter(([,amount])=>amount>0).slice(0,index+1).reduce((sum,[,amount])=>sum+amount/dashboardCategoryTotal*100,0)}%`).join(",")})`:"conic-gradient(#edf0f5 0 100%)";
   function inspectCategory(category:string) { setSearch(category); activateModule("Movimientos"); }
   const fixedTotal=fixedExpenses.reduce((sum,item)=>sum+item.amount,0);
   const monthlyForPeriod=monthlyExpenses.filter(item=>(item.period??initialPeriod)===activePeriod);
