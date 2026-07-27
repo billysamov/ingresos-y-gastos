@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car, Check, ChevronDown, ChevronRight, Circle, CreditCard, Home as HomeIcon, Layers3, LayoutDashboard, Landmark, Menu, MoreHorizontal, Pencil, PiggyBank, Plus, ReceiptText, Search, Settings, ShoppingBag, Smartphone, Target, Trash2, TrendingUp, Utensils, WalletCards, X, Zap } from "lucide-react";
 import { deleteRelationalRecord, isSupabaseConfigured, loadRelationalFinanceState, saveRelationalFinanceState } from "../lib/supabase-state";
 
@@ -100,6 +100,7 @@ export default function Home() {
   const [incomeCategoryDraft, setIncomeCategoryDraft] = useState("");
   const [ready, setReady] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"loading"|"saving"|"synced"|"setup">("loading");
+  const skipInitialPersistence = useRef(true);
   const moduleFromHash=()=>{
     const value=decodeURIComponent(window.location.hash.replace(/^#/,""));
     return [...nav.map(([label])=>label),"Configuración"].find(label=>label.toLowerCase()===value.toLowerCase())??"Resumen";
@@ -158,6 +159,10 @@ export default function Home() {
   },[]);
   useEffect(()=>{
     if(!ready||!isSupabaseConfigured||syncStatus==="setup") return;
+    // La primera carga solo hidrata la interfaz desde Supabase; no debe volver a
+    // escribir nada ni mostrar "Guardando". A partir del siguiente cambio real,
+    // el efecto sí persiste la fila modificada.
+    if(skipInitialPersistence.current) { skipInitialPersistence.current=false; return; }
     const timer=window.setTimeout(()=>{
       setSyncStatus("saving");
       const data={transactions,savings,savingsGoals,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories};
