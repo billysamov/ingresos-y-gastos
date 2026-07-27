@@ -14,6 +14,7 @@ type Profile = { fullName:string; currency:string; monthlySalary?:number; autoRe
 type Budget = { id:number; name:string; limit:number; color:string };
 type MonthAccess = { year:number; month:number };
 type SavingsGoal = { id:number; name:string; target:number; amount:number };
+type DeleteConfirmation = { message:string; onConfirm:()=>void };
 
 const seed: Tx[] = [];
 const fixedSeed: ExpenseEntry[] = [];
@@ -60,6 +61,7 @@ export default function Home() {
 
   const [active, setActive] = useState("Resumen");
   const [editingMovement, setEditingMovement] = useState<Tx|null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation|null>(null);
   const [transactions, setTransactions] = useState(seed);
   const [showModal, setShowModal] = useState(false);
   const [movementKind, setMovementKind] = useState<"income"|"expense">("expense");
@@ -322,8 +324,8 @@ export default function Home() {
     setNotice(operation === "withdraw" ? `Retiro de S/ ${amount} registrado` : `Aporte de S/ ${amount} registrado (${account})`);
   }
 
-  function removeTransaction(id:number) {
-    if(!window.confirm("¿Eliminar este movimiento? Podrás revertirlo únicamente desde tu copia de respaldo.")) return;
+  function removeTransaction(id:number, confirmed=false) {
+    if(!confirmed) { setDeleteConfirmation({message:"Eliminarás este movimiento. Esta acción se sincronizará con Supabase.",onConfirm:()=>removeTransaction(id,true)}); return; }
     setTransactions(previous => {
       const next = previous.filter(item => item.id !== id);
       localStorage.setItem("finanza-transactions", JSON.stringify(next));
@@ -332,8 +334,8 @@ export default function Home() {
     setNotice("Movimiento eliminado");
   }
 
-  function removeMovement(id:number) {
-    if(!window.confirm("¿Eliminar este movimiento? Esta acción actualizará Supabase.")) return;
+  function removeMovement(id:number, confirmed=false) {
+    if(!confirmed) { setDeleteConfirmation({message:"Eliminarás este movimiento. Esta acción se sincronizará con Supabase.",onConfirm:()=>removeMovement(id,true)}); return; }
     const transaction=transactions.find(item=>item.id===id);
     const virtualExpense=detailedExpenseTransactions.find(item=>item.id===id);
     const inferredSource=transaction&&fixedExpenses.some(item=>item.id===transaction.id)?"fixed":transaction&&monthlyExpenses.some(item=>item.id===transaction.id)?"monthly":undefined;
@@ -436,8 +438,8 @@ export default function Home() {
 
   function openSubExpenseForm(groupId:number) { setSubRows([Date.now()]);setExpenseModal({kind:"sub",groupId}); }
 
-  function removeDetailedExpense(section:"fixed"|"monthly",id:number) {
-    if(!window.confirm("¿Eliminar este gasto planificado?")) return;
+  function removeDetailedExpense(section:"fixed"|"monthly",id:number, confirmed=false) {
+    if(!confirmed) { setDeleteConfirmation({message:"Eliminarás este gasto planificado del período.",onConfirm:()=>removeDetailedExpense(section,id,true)}); return; }
     if(section==="fixed") setFixedExpenses(items=>items.filter(item=>item.id!==id));
     else setMonthlyExpenses(items=>items.filter(item=>item.id!==id));
     setTransactions(items=>items.filter(item=>item.id!==id&&item.sourceId!==id));
@@ -453,8 +455,8 @@ export default function Home() {
     setDetailedEdit(null);setNotice("Gasto actualizado correctamente");
   }
 
-  function removeSubExpense(groupId:number,itemId:number) {
-    if(!window.confirm("¿Eliminar este subgasto?")) return;
+  function removeSubExpense(groupId:number,itemId:number, confirmed=false) {
+    if(!confirmed) { setDeleteConfirmation({message:"Eliminarás este subgasto del detalle planificado.",onConfirm:()=>removeSubExpense(groupId,itemId,true)}); return; }
     const item=expenseGroups.find(group=>group.id===groupId)?.items.find(entry=>entry.id===itemId);
     if(item?.category==="Ahorro"&&item.savingDestination!==undefined) {
       if(item.savingDestination==="general") setSavings(value=>Math.max(0,value-item.amount));
@@ -791,6 +793,7 @@ export default function Home() {
     {savingContributionTarget!==null&&<div className="modal-backdrop" onMouseDown={()=>setSavingContributionTarget(null)}><form className="modal" onSubmit={contributeToSaving} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Movimiento de ahorro</h2><p>{savingContributionTarget==="general"?"Ahorro general sin destino específico.":`Meta: ${savingsGoals.find(goal=>goal.id===savingContributionTarget)?.name??""}`}</p></div><button type="button" onClick={()=>setSavingContributionTarget(null)}><X/></button></div><label>Operación<select name="operation"><option value="add">Agregar aporte</option><option value="withdraw">Retirar dinero</option></select></label><label>Monto (S/)<input name="amount" required autoFocus type="number" min="0.01" step="0.01" placeholder="0.00"/></label><label>Cuenta de origen / destino<select name="account"><option value="BCP •• 2847">BCP •• 2847</option><option value="Yape">Yape</option><option value="Interbank •• 9041">Interbank •• 9041</option><option value="Efectivo">Efectivo</option></select></label><div className="modal-actions"><button type="button" onClick={()=>setSavingContributionTarget(null)}>Cancelar</button><button className="primary" type="submit">Guardar movimiento</button></div></form></div>}
     {showBudgetModal&&<div className="modal-backdrop" onMouseDown={()=>setShowBudgetModal(false)}><form className="modal" onSubmit={addBudget} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nuevo presupuesto</h2><p>Define el límite mensual de un rubro.</p></div><button type="button" onClick={()=>setShowBudgetModal(false)}><X/></button></div><label>Rubro<input name="name" required autoFocus placeholder="Ej. Alimentación"/></label><label>Límite mensual (S/)<input name="limit" required type="number" min="0.01" step="0.01" placeholder="0.00"/></label><label>Color<select name="color"><option value="purple">Morado</option><option value="blue">Azul</option><option value="orange">Naranja</option><option value="teal">Verde</option></select></label><div className="modal-actions"><button type="button" onClick={()=>setShowBudgetModal(false)}>Cancelar</button><button className="primary" type="submit">Crear presupuesto</button></div></form></div>}
     {editingMovement&&<div className="modal-backdrop" onMouseDown={()=>setEditingMovement(null)}><form className="modal" onSubmit={saveMovementEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Editar movimiento</h2><p>Actualiza este registro sin crear uno nuevo.</p></div><button type="button" onClick={()=>setEditingMovement(null)}><X/></button></div><label>Descripción<input name="title" required autoFocus defaultValue={editingMovement.title}/></label><div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" defaultValue={editingMovement.amount}/></label><label>Categoría<select name="category" defaultValue={editingMovement.category}>{(editingMovement.kind==="income"?incomeCategories:categories).map(category=><option key={category}>{category}</option>)}</select></label></div><label>Cuenta<select name="account" defaultValue={editingMovement.account}><option>Yape</option><option>BCP</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label><div className="modal-actions"><button type="button" onClick={()=>setEditingMovement(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>}
+    {deleteConfirmation&&<div className="modal-backdrop" onMouseDown={()=>setDeleteConfirmation(null)}><section className="modal delete-confirmation" role="dialog" aria-modal="true" aria-labelledby="delete-title" onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><p className="eyebrow">CONFIRMACIÓN</p><h2 id="delete-title">¿Eliminar registro?</h2><p>{deleteConfirmation.message}</p></div><button type="button" aria-label="Cerrar" onClick={()=>setDeleteConfirmation(null)}><X/></button></div><div className="modal-actions"><button type="button" onClick={()=>setDeleteConfirmation(null)}>Cancelar</button><button className="danger-action" type="button" onClick={()=>{const action=deleteConfirmation.onConfirm;setDeleteConfirmation(null);action();}}>Eliminar</button></div></section></div>}
     {notice&&<div className="toast">✓ {notice}</div>}
   </div>
 }
