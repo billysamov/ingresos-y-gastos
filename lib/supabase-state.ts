@@ -2,18 +2,22 @@ type StoredState = Record<string, unknown>;
 
 const metaEnv = (typeof import.meta !== "undefined" ? (import.meta as unknown as { env?: Record<string, string> }).env : undefined) ?? {};
 const procEnv = (typeof process !== "undefined" ? (process.env as Record<string, string | undefined>) : undefined) ?? {};
+// Next.js solo expone variables públicas al cliente cuando se usan de forma directa.
+// La lectura dinámica funciona en Vinext local, pero no queda incluida en el bundle de Vercel.
+const nextPublicSupabaseUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_SUPABASE_URL : undefined;
+const nextPublicSupabaseKey = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY : undefined;
 
 const supabaseUrl = (
   metaEnv.VITE_SUPABASE_URL ||
   metaEnv.NEXT_PUBLIC_SUPABASE_URL ||
-  procEnv.NEXT_PUBLIC_SUPABASE_URL ||
+  nextPublicSupabaseUrl ||
   procEnv.VITE_SUPABASE_URL
 )?.replace(/\/$/, "");
 
 const publishableKey =
   metaEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
   metaEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  procEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  nextPublicSupabaseKey ||
   procEnv.VITE_SUPABASE_PUBLISHABLE_KEY;
 const stateId = "finanza-personal";
 const profileId = "00000000-0000-4000-8000-000000000001";
