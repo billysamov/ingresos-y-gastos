@@ -582,7 +582,12 @@ export default function Home() {
   const expenseByCategory = [...periodTransactions.filter(t=>t.kind==="expense"),...expenseEntriesForPeriod.map(({item})=>item)].reduce<Record<string,number>>((result,item)=>{
     result[item.category]=(result[item.category]||0)+item.amount;
     return result;
-  },{});
+  },Object.fromEntries(categories.map(category=>[category,0])) as Record<string,number>);
+  const dashboardCategories=Object.entries(expenseByCategory).sort((a,b)=>b[1]-a[1]);
+  const dashboardPalette=["#8957da","#1767e8","#ff9148","#35bdb4","#ed5d92","#d3a336","#6476d9","#8492a6"];
+  const dashboardCategoryTotal=dashboardCategories.reduce((sum,[,value])=>sum+value,0);
+  const dashboardDonut=dashboardCategoryTotal?`conic-gradient(${dashboardCategories.filter(([,value])=>value>0).map(([name,value,index)=>`${dashboardPalette[index%dashboardPalette.length]} ${dashboardCategories.filter(([,amount])=>amount>0).slice(0,index).reduce((sum,[,amount])=>sum+amount/dashboardCategoryTotal*100,0)}% ${dashboardCategories.filter(([,amount])=>amount>0).slice(0,index+1).reduce((sum,[,amount])=>sum+amount/dashboardCategoryTotal*100,0)}%`).join(",")})`:"conic-gradient(#edf0f5 0 100%)";
+  function inspectCategory(category:string) { setSearch(category); activateModule("Movimientos"); }
   const fixedTotal=fixedExpenses.reduce((sum,item)=>sum+item.amount,0);
   const monthlyForPeriod=monthlyExpenses.filter(item=>(item.period??initialPeriod)===activePeriod);
   const monthlyTotal=monthlyForPeriod.reduce((sum,item)=>sum+item.amount,0);
@@ -763,9 +768,9 @@ export default function Home() {
           </article>
 
           <article className="card spending-card">
-            <div className="card-title"><div><h2>Gastos por categoría</h2><p>Distribución este mes</p></div><button className="dots"><MoreHorizontal/></button></div>
-            <div className="donut-area"><div className="donut"><div><strong>S/ {totals.expense.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><span>Total gastos</span></div></div><div className="category-list">
-              {Object.entries(expenseByCategory).length>0?Object.entries(expenseByCategory).slice(0,4).map(([name,value],index)=><div key={name}><i className={`dot ${["purple","blue","orange","teal"][index]}`}/><span>{name}</span><strong>S/ {value.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><small>{totals.expense?`${Math.round(value/totals.expense*100)}%`:"0%"}</small></div>):<div><span>Aún no hay gastos registrados.</span></div>}
+            <div className="card-title"><div><h2>Gastos por categoría</h2><p>Pronóstico y movimientos de este mes</p></div><button className="category-details" onClick={()=>activateModule("Gastos")}>Gestionar gastos</button></div>
+            <div className="donut-area"><div className="donut" style={{background:dashboardDonut}}><div><strong>S/ {dashboardCategoryTotal.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><span>Total previsto</span></div></div><div className="category-list">
+              {dashboardCategories.map(([name,value],index)=><button type="button" className="category-row" key={name} onClick={()=>inspectCategory(name)} title={`Ver movimientos de ${name}`}><i className="dot" style={{background:dashboardPalette[index%dashboardPalette.length]}}/><span>{name}</span><strong>S/ {value.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><small>{dashboardCategoryTotal?`${Math.round(value/dashboardCategoryTotal*100)}%`:"Sin gasto"}</small></button>)}
             </div></div>
           </article>
 
