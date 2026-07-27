@@ -5,15 +5,15 @@ import { ArrowDownLeft, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car
 import { deleteRelationalRecord, isSupabaseConfigured, loadRelationalFinanceState, saveRelationalFinanceState } from "../lib/supabase-state";
 
 type ExpenseSource = "fixed"|"monthly"|"category";
-type Tx = { id:number; dbId?:string; title:string; category:string; account:string; date:string; amount:number; kind:"income"|"expense"; period?:string; expenseSource?:ExpenseSource; sourceId?:number; groupName?:string; savingDestination?:"general"|number; planned?:boolean; requiresConfirmation?:boolean; completed?:boolean };
-type ExpenseEntry = { id:number; dbId?:string; name:string; category:string; amount:number; period?:string; account?:string; transactionId?:number; savingDestination?:"general"|number; requiresConfirmation?:boolean; completed?:boolean };
-type ExpenseGroup = { id:number; dbId?:string; name:string; budget:number; items:ExpenseEntry[] };
+type Tx = { id:number; dbId?:string; dbUpdatedAt?:string; title:string; category:string; account:string; date:string; amount:number; kind:"income"|"expense"; period?:string; expenseSource?:ExpenseSource; sourceId?:number; groupName?:string; savingDestination?:"general"|number; planned?:boolean; requiresConfirmation?:boolean; completed?:boolean };
+type ExpenseEntry = { id:number; dbId?:string; dbUpdatedAt?:string; name:string; category:string; amount:number; period?:string; account?:string; transactionId?:number; savingDestination?:"general"|number; requiresConfirmation?:boolean; completed?:boolean };
+type ExpenseGroup = { id:number; dbId?:string; dbUpdatedAt?:string; name:string; budget:number; items:ExpenseEntry[] };
 type ExpenseModal = { kind:"fixed"|"monthly"|"group"|"sub"; groupId?:number } | null;
 type ExpenseEdit = { kind:"group"; groupId:number } | { kind:"sub"; groupId:number; itemId:number } | null;
 type Profile = { fullName:string; currency:string; monthlySalary?:number; autoRegisterSalary?:boolean };
 type Budget = { id:number; name:string; limit:number; color:string };
 type MonthAccess = { year:number; month:number };
-type SavingsGoal = { id:number; dbId?:string; name:string; target:number; amount:number };
+type SavingsGoal = { id:number; dbId?:string; dbUpdatedAt?:string; name:string; target:number; amount:number };
 type DeleteConfirmation = { message:string; onConfirm:()=>void };
 
 const seed: Tx[] = [];
