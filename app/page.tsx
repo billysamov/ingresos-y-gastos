@@ -579,7 +579,16 @@ export default function Home() {
     setIncomeCategories(items=>[...items,name]);setIncomeCategoryDraft("");setNotice("Rubro de ingreso agregado correctamente");
   }
 
-  const expenseByCategory = [...periodTransactions.filter(t=>t.kind==="expense"),...expenseEntriesForPeriod.map(({item})=>item)].reduce<Record<string,number>>((result,item)=>{
+  const categoryExpenseItems=[
+    ...periodTransactions.filter(t=>t.kind==="expense"),
+    ...expenseEntriesForPeriod.filter(entry=>entry.source!=="category").map(({item})=>item),
+    ...expenseGroups.flatMap(group=>{
+      const detailed=group.items.reduce((sum,item)=>sum+item.amount,0);
+      const remaining=Math.max(0,group.budget-detailed);
+      return [...group.items,...(remaining?[{id:-group.id,name:`Pendiente de ${group.name}`,category:group.name,amount:remaining}]:[])];
+    }),
+  ];
+  const expenseByCategory = categoryExpenseItems.reduce<Record<string,number>>((result,item)=>{
     result[item.category]=(result[item.category]||0)+item.amount;
     return result;
   },Object.fromEntries(categories.map(category=>[category,0])) as Record<string,number>);
