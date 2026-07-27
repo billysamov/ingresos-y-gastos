@@ -95,6 +95,9 @@ export async function saveRelationalFinanceState(data: FinanceData) {
     if (!groupId) continue;
     await Promise.all((Array.isArray(group.items) ? group.items : []).map((item: JsonRow) => patchOrInsert("expense_items", item.dbId, { expense_group_id: groupId, name: item.name, category: item.category, amount: item.amount, account_name: item.account ?? "Efectivo", period_key: item.period ?? period, requires_confirmation: item.requiresConfirmation !== false, completed: Boolean(item.completed) }, item.id)));
   }
+  const remoteGroups = await request(`expense_groups?profile_id=eq.${profileId}&select=id`) as JsonRow[];
+  const activeGroupIds = new Set(data.expenseGroups.map(group => String(group.dbId ?? remoteIds.get(`expense_groups:${group.id}`) ?? "")));
+  await Promise.all(remoteGroups.filter(group => !activeGroupIds.has(String(group.id))).map(group => request(`expense_groups?id=eq.${group.id}`, { method: "DELETE", headers: { Prefer: "return=minimal" } })));
   const allCategories = [...data.categories.map(name => ({ name, category_type: "expense" })), ...data.incomeCategories.map(name => ({ name, category_type: "income" }))];
   const remoteCategories = await request(`categories?profile_id=eq.${profileId}&select=id,name,category_type`) as JsonRow[];
   await Promise.all(allCategories.filter(item => !remoteCategories.some(row => row.name === item.name && row.category_type === item.category_type)).map(item => request("categories", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ profile_id: profileId, ...item }) })));
