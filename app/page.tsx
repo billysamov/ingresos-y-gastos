@@ -323,6 +323,7 @@ export default function Home() {
   }
 
   function removeTransaction(id:number) {
+    if(!window.confirm("¿Eliminar este movimiento? Podrás revertirlo únicamente desde tu copia de respaldo.")) return;
     setTransactions(previous => {
       const next = previous.filter(item => item.id !== id);
       localStorage.setItem("finanza-transactions", JSON.stringify(next));
@@ -332,6 +333,7 @@ export default function Home() {
   }
 
   function removeMovement(id:number) {
+    if(!window.confirm("¿Eliminar este movimiento? Esta acción actualizará Supabase.")) return;
     const transaction=transactions.find(item=>item.id===id);
     const virtualExpense=detailedExpenseTransactions.find(item=>item.id===id);
     const inferredSource=transaction&&fixedExpenses.some(item=>item.id===transaction.id)?"fixed":transaction&&monthlyExpenses.some(item=>item.id===transaction.id)?"monthly":undefined;
@@ -435,6 +437,7 @@ export default function Home() {
   function openSubExpenseForm(groupId:number) { setSubRows([Date.now()]);setExpenseModal({kind:"sub",groupId}); }
 
   function removeDetailedExpense(section:"fixed"|"monthly",id:number) {
+    if(!window.confirm("¿Eliminar este gasto planificado?")) return;
     if(section==="fixed") setFixedExpenses(items=>items.filter(item=>item.id!==id));
     else setMonthlyExpenses(items=>items.filter(item=>item.id!==id));
     setTransactions(items=>items.filter(item=>item.id!==id&&item.sourceId!==id));
@@ -451,6 +454,7 @@ export default function Home() {
   }
 
   function removeSubExpense(groupId:number,itemId:number) {
+    if(!window.confirm("¿Eliminar este subgasto?")) return;
     const item=expenseGroups.find(group=>group.id===groupId)?.items.find(entry=>entry.id===itemId);
     if(item?.category==="Ahorro"&&item.savingDestination!==undefined) {
       if(item.savingDestination==="general") setSavings(value=>Math.max(0,value-item.amount));
@@ -519,6 +523,13 @@ export default function Home() {
     e.preventDefault(); const fd=new FormData(e.currentTarget);
     setBudgets(items=>[...items,{id:Date.now(),name:String(fd.get("name")),limit:Number(fd.get("limit")),color:String(fd.get("color"))}]);
     setShowBudgetModal(false); setNotice("Presupuesto creado correctamente");
+  }
+
+  function downloadBackup() {
+    const backup={exportedAt:new Date().toISOString(),transactions,savings,savingsGoals,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories};
+    const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}));
+    const link=document.createElement("a"); link.href=url; link.download=`finanza-respaldo-${activePeriod}.json`; link.click(); URL.revokeObjectURL(url);
+    setNotice("Copia de respaldo descargada");
   }
 
   function isPeriodEnabled(year:number,month:number) {
@@ -668,7 +679,7 @@ export default function Home() {
       <section className="report-grid"><article className="card module-card"><div className="card-title"><div><h2>Gastos por rubro</h2><p>Distribución de los registros actuales</p></div></div><div className="report-list">{Object.entries(expenseByCategory).sort((a,b)=>b[1]-a[1]).map(([name,value])=><div key={name}><span className="report-name">{categoryIcon(name,"expense")}{name}</span><div className="report-bar"><i style={{width:`${totals.expense?value/totals.expense*100:0}%`}}/></div><strong>S/ {value.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong></div>)}</div></article><article className="card report-summary"><TrendingUp/><span>Tasa de ahorro</span><strong>{totals.income?Math.max(0,Math.round((totals.income-totals.expense)/totals.income*100)):0}%</strong><p>Porcentaje disponible después de descontar tus gastos.</p></article></section>
     </>;
     if(active==="Configuración") return <>
-      <ModuleHeading eyebrow="PREFERENCIAS" title="Configuración de perfil" text="Actualiza tu perfil, tus rubros y el avance de cada período."/>
+      <ModuleHeading eyebrow="PREFERENCIAS" title="Configuración de perfil" text="Actualiza tu perfil, tus rubros y el avance de cada período." action={<button onClick={downloadBackup}><TrendingUp size={17}/>Descargar respaldo</button>}/>
       <article className="card module-card profile-settings"><form onSubmit={saveProfile}><div className="card-title"><div><h2>Datos personales y sueldo base</h2><p>Define tu sueldo base para conectar automáticamente tus gastos del mes.</p></div></div><div className="form-row"><label>Nombre visible<input name="fullName" required value={profile.fullName} onChange={e=>setProfile(value=>({...value,fullName:e.target.value}))}/></label><label>Moneda principal<select name="currency" value={profile.currency} onChange={e=>setProfile(value=>({...value,currency:e.target.value}))}><option value="PEN">Soles peruanos (PEN)</option><option value="USD">Dólares (USD)</option><option value="EUR">Euros (EUR)</option></select></label></div><div className="form-row" style={{marginTop:"12px"}}><label>Sueldo mensual base (S/)<input name="monthlySalary" type="number" min="0" step="50" placeholder="Ej. 3500" value={profile.monthlySalary ?? ""} onChange={e=>setProfile(value=>({...value,monthlySalary:Number(e.target.value)}))}/></label><label style={{display:"flex",alignItems:"center",gap:"10px",marginTop:"24px",cursor:"pointer"}}><input type="checkbox" name="autoRegisterSalary" checked={profile.autoRegisterSalary ?? false} onChange={e=>setProfile(value=>({...value,autoRegisterSalary:e.target.checked}))} style={{width:"auto"}}/>Registrar sueldo automáticamente al cerrar mes</label></div><div className="modal-actions"><button className="primary" type="submit">Guardar perfil</button></div></form></article>
       <article className="card module-card profile-settings"><div className="card-title"><div><h2>Categorías personales</h2><p>Se crean y administran aquí; se usan para clasificar todos tus gastos.</p></div></div><form onSubmit={addCategory} className="form-row"><label>Nueva categoría<input value={categoryDraft} onChange={e=>setCategoryDraft(e.target.value)} placeholder="Ej. Mascotas"/></label><div className="modal-actions"><button className="primary" type="submit">Agregar categoría</button></div></form><div className="report-list">{categories.map(category=><div key={category}><span className="report-name">{category}</span><button className="expense-delete" type="button" onClick={()=>setCategories(items=>items.filter(item=>item!==category))} aria-label={`Eliminar ${category}`}><Trash2 size={14}/></button></div>)}</div></article>
       <article className="card module-card profile-settings"><div className="card-title"><div><h2>Rubros de ingreso</h2><p>Estos nombres aparecen solamente cuando registras un ingreso.</p></div></div><form onSubmit={addIncomeCategory} className="form-row"><label>Nuevo rubro de ingreso<input value={incomeCategoryDraft} onChange={e=>setIncomeCategoryDraft(e.target.value)} placeholder="Ej. Comisión"/></label><div className="modal-actions"><button className="primary" type="submit">Agregar rubro</button></div></form><div className="report-list">{incomeCategories.map(category=><div key={category}><span className="report-name">{category}</span><button className="expense-delete" type="button" onClick={()=>setIncomeCategories(items=>items.filter(item=>item!==category))} aria-label={`Eliminar ${category}`}><Trash2 size={14}/></button></div>)}</div></article>
