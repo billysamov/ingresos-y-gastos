@@ -27,6 +27,13 @@ const initialPeriod = "2026-08";
 const defaultCategories = ["Hogar","Transporte","Alimentación","Servicios","Suscripciones","Frutas","Abarrotes","Otros"];
 const defaultIncomeCategories = ["Sueldo","Honorarios","Ventas","Freelance","Transferencia recibida","Reembolso","Otros ingresos"];
 
+function legacyTransactionId(item: Partial<Tx>, index:number) {
+  const fingerprint=[item.title,item.category,item.account,item.amount,item.period,index].join("|");
+  let hash=0;
+  for(let position=0;position<fingerprint.length;position++) hash=(hash*31+fingerprint.charCodeAt(position))>>>0;
+  return 1_000_000_000+hash;
+}
+
 const nav = [
   ["Resumen", LayoutDashboard], ["Movimientos", WalletCards], ["Gastos", ReceiptText], ["Metas de ahorro", Target], ["Reportes", TrendingUp], ["Cuentas", Landmark],
 ] as const;
@@ -114,7 +121,7 @@ export default function Home() {
         try {
           const remote=await loadSupabaseState();
           if(remote) {
-            const remoteTx = Array.isArray(remote.transactions) ? (remote.transactions as Tx[]).filter(item=>!demoTransactionIds.has(Number(item.id))).map(item=>({...item,period:item.period??initialPeriod})) : [];
+            const remoteTx = Array.isArray(remote.transactions) ? (remote.transactions as Tx[]).filter(item=>!demoTransactionIds.has(Number(item.id))).map((item,index)=>({...item,id:Number.isFinite(Number(item.id))?Number(item.id):legacyTransactionId(item,index),period:item.period??initialPeriod})) : [];
             const remoteFixed = Array.isArray(remote.fixedExpenses) ? (remote.fixedExpenses as ExpenseEntry[]).filter(item=>!demoFixedExpenseIds.has(Number(item.id))) : [];
             const remoteMonthly = Array.isArray(remote.monthlyExpenses) ? (remote.monthlyExpenses as ExpenseEntry[]).filter(item=>!demoMonthlyExpenseIds.has(Number(item.id))).map(item=>({...item,period:item.period??initialPeriod})) : [];
             const remoteGroups = Array.isArray(remote.expenseGroups) ? (remote.expenseGroups as ExpenseGroup[]).filter(item=>!demoGroupIds.has(Number(item.id))) : [];
