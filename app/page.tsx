@@ -2,18 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car, Check, ChevronDown, ChevronRight, Circle, CreditCard, Home as HomeIcon, Layers3, LayoutDashboard, Landmark, Menu, MoreHorizontal, Pencil, PiggyBank, Plus, ReceiptText, Search, Settings, ShoppingBag, Smartphone, Target, Trash2, TrendingUp, Utensils, WalletCards, X, Zap } from "lucide-react";
-import { isSupabaseConfigured, loadSupabaseState, saveSupabaseState, syncSupabaseTables } from "../lib/supabase-state";
+import { deleteRelationalRecord, isSupabaseConfigured, loadRelationalFinanceState, saveRelationalFinanceState } from "../lib/supabase-state";
 
 type ExpenseSource = "fixed"|"monthly"|"category";
-type Tx = { id:number; title:string; category:string; account:string; date:string; amount:number; kind:"income"|"expense"; period?:string; expenseSource?:ExpenseSource; sourceId?:number; groupName?:string; savingDestination?:"general"|number; planned?:boolean; requiresConfirmation?:boolean; completed?:boolean };
-type ExpenseEntry = { id:number; name:string; category:string; amount:number; period?:string; account?:string; transactionId?:number; savingDestination?:"general"|number; requiresConfirmation?:boolean; completed?:boolean };
-type ExpenseGroup = { id:number; name:string; budget:number; items:ExpenseEntry[] };
+type Tx = { id:number; dbId?:string; title:string; category:string; account:string; date:string; amount:number; kind:"income"|"expense"; period?:string; expenseSource?:ExpenseSource; sourceId?:number; groupName?:string; savingDestination?:"general"|number; planned?:boolean; requiresConfirmation?:boolean; completed?:boolean };
+type ExpenseEntry = { id:number; dbId?:string; name:string; category:string; amount:number; period?:string; account?:string; transactionId?:number; savingDestination?:"general"|number; requiresConfirmation?:boolean; completed?:boolean };
+type ExpenseGroup = { id:number; dbId?:string; name:string; budget:number; items:ExpenseEntry[] };
 type ExpenseModal = { kind:"fixed"|"monthly"|"group"|"sub"; groupId?:number } | null;
 type ExpenseEdit = { kind:"group"; groupId:number } | { kind:"sub"; groupId:number; itemId:number } | null;
 type Profile = { fullName:string; currency:string; monthlySalary?:number; autoRegisterSalary?:boolean };
 type Budget = { id:number; name:string; limit:number; color:string };
 type MonthAccess = { year:number; month:number };
-type SavingsGoal = { id:number; name:string; target:number; amount:number };
+type SavingsGoal = { id:number; dbId?:string; name:string; target:number; amount:number };
 type DeleteConfirmation = { message:string; onConfirm:()=>void };
 
 const seed: Tx[] = [];
@@ -99,7 +99,7 @@ export default function Home() {
   const [categoryDraft, setCategoryDraft] = useState("");
   const [incomeCategoryDraft, setIncomeCategoryDraft] = useState("");
   const [ready, setReady] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<"loading"|"synced"|"local"|"setup">("loading");
+  const [syncStatus, setSyncStatus] = useState<"loading"|"saving"|"synced"|"setup">("loading");
   const moduleFromHash=()=>{
     const value=decodeURIComponent(window.location.hash.replace(/^#/,""));
     return [...nav.map(([label])=>label),"Configuración"].find(label=>label.toLowerCase()===value.toLowerCase())??"Resumen";
@@ -117,26 +117,10 @@ export default function Home() {
   useEffect(()=>{
     async function hydrate() {
       let local:{transactions:Tx[];savings:number;savingsGoals:SavingsGoal[];fixedExpenses:ExpenseEntry[];monthlyExpenses:ExpenseEntry[];expenseGroups:ExpenseGroup[];profile:Profile;budgets:Budget[];monthAccess:MonthAccess;categories:string[];incomeCategories:string[]}={transactions:seed,savings:0,savingsGoals:[],fixedExpenses:fixedSeed,monthlyExpenses:monthlySeed,expenseGroups:groupSeed,profile:{fullName:"Mi perfil",currency:"PEN"},budgets:[],monthAccess:{year:2026,month:7},categories:defaultCategories,incomeCategories:defaultIncomeCategories};
-      try {
-        const saved = localStorage.getItem("finanza-transactions");
-        const savedSavings = localStorage.getItem("finanza-savings");
-        const savedSavingsGoals = localStorage.getItem("finanza-savings-goals");
-        const savedFixed = localStorage.getItem("finanza-fixed-expenses");
-        const savedMonthly = localStorage.getItem("finanza-monthly-expenses");
-        const savedGroups = localStorage.getItem("finanza-expense-groups");
-        const savedSettings = localStorage.getItem("finanza-settings");
-        if(saved) local.transactions=JSON.parse(saved);
-        if(savedSavings) local.savings=Number(savedSavings);
-        if(savedSavingsGoals) local.savingsGoals=JSON.parse(savedSavingsGoals);
-        if(savedFixed) local.fixedExpenses=JSON.parse(savedFixed);
-        if(savedMonthly) local.monthlyExpenses=JSON.parse(savedMonthly);
-        if(savedGroups) local.expenseGroups=JSON.parse(savedGroups);
-        if(savedSettings) { const settings=JSON.parse(savedSettings); if(settings.periodVersion===2&&settings.monthAccess) local.monthAccess=settings.monthAccess; if(Array.isArray(settings.categories)) local.categories=settings.categories; if(Array.isArray(settings.incomeCategories)) local.incomeCategories=settings.incomeCategories; }
-      } catch {}
       let source=local;
       if(isSupabaseConfigured) {
         try {
-          const remote=await loadSupabaseState();
+          const remote=await loadRelationalFinanceState();
           if(remote) {
             const remoteTx = Array.isArray(remote.transactions) ? (remote.transactions as Tx[]).filter(item=>!demoTransactionIds.has(Number(item.id))).map((item,index)=>({...item,id:Number.isFinite(Number(item.id))?Number(item.id):legacyTransactionId(item,index),period:item.period??initialPeriod})) : [];
             const remoteFixed = Array.isArray(remote.fixedExpenses) ? (remote.fixedExpenses as ExpenseEntry[]).filter(item=>!demoFixedExpenseIds.has(Number(item.id))) : [];
@@ -144,8 +128,7 @@ export default function Home() {
             const remoteGroups = Array.isArray(remote.expenseGroups) ? (remote.expenseGroups as ExpenseGroup[]).filter(item=>!demoGroupIds.has(Number(item.id))) : [];
 
             // Con Supabase conectado, la nube es la fuente única de datos.
-            // No se mezclan copias antiguas de localStorage: una eliminación debe
-            // mantenerse eliminada al abrir nuevamente la aplicación.
+            // Supabase es la fuente única de datos: cada módulo llega desde su tabla.
             source={
               transactions: remoteTx,
               savings: typeof remote.savings === "number" ? remote.savings : 0,
@@ -155,14 +138,14 @@ export default function Home() {
               expenseGroups: remoteGroups,
               profile: typeof remote.profile === "object" && remote.profile ? { fullName:"Mi perfil",currency:"PEN", ...(remote.profile as Profile) } : {fullName:"Mi perfil",currency:"PEN"},
               budgets: Array.isArray(remote.budgets) ? (remote.budgets as Budget[]) : [],
-              monthAccess: remote.periodVersion === 2 && typeof remote.monthAccess === "object" && remote.monthAccess ? (remote.monthAccess as MonthAccess) : {year:2026,month:7},
+              monthAccess: typeof remote.monthAccess === "object" && remote.monthAccess ? (remote.monthAccess as MonthAccess) : {year:2026,month:7},
               categories: Array.from(new Set([...defaultCategories, ...(Array.isArray(remote.categories) ? (remote.categories as string[]) : [])])).filter(c => c !== "Ahorro"),
               incomeCategories: Array.from(new Set([...defaultIncomeCategories, ...(Array.isArray(remote.incomeCategories) ? (remote.incomeCategories as string[]) : [])])),
             };
           }
           setSyncStatus("synced");
         } catch { setSyncStatus("setup"); }
-      } else setSyncStatus("local");
+      } else setSyncStatus("setup");
       // Los elementos del módulo Gastos representan el plan del mes. Si venían de
       // versiones anteriores, se habilita su confirmación sin tocar movimientos ya realizados.
       const plannedFixed=source.fixedExpenses.map(item=>({...item,requiresConfirmation:item.requiresConfirmation??true}));
@@ -174,28 +157,14 @@ export default function Home() {
     void hydrate();
   },[]);
   useEffect(()=>{
-    if(ready){
-      localStorage.setItem("finanza-transactions", JSON.stringify(transactions));
-      localStorage.setItem("finanza-savings", String(savings));
-      localStorage.setItem("finanza-savings-goals", JSON.stringify(savingsGoals));
-    }
-  },[transactions,savings,savingsGoals,ready]);
-  useEffect(()=>{
-    if(ready){
-      localStorage.setItem("finanza-fixed-expenses",JSON.stringify(fixedExpenses));
-      localStorage.setItem("finanza-monthly-expenses",JSON.stringify(monthlyExpenses));
-      localStorage.setItem("finanza-expense-groups",JSON.stringify(expenseGroups));
-    }
-  },[fixedExpenses,monthlyExpenses,expenseGroups,ready]);
-  useEffect(()=>{ if(ready) localStorage.setItem("finanza-settings",JSON.stringify({monthAccess,categories,incomeCategories,periodVersion:2})); },[monthAccess,categories,incomeCategories,ready]);
-  useEffect(()=>{
     if(!ready||!isSupabaseConfigured||syncStatus==="setup") return;
     const timer=window.setTimeout(()=>{
-      const data={transactions,savings,savingsGoals,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories,periodVersion:2};
-      void Promise.all([saveSupabaseState(data),syncSupabaseTables(data)]).then(()=>setSyncStatus("synced")).catch(()=>setSyncStatus("setup"));
+      setSyncStatus("saving");
+      const data={transactions,savings,savingsGoals,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories};
+      void saveRelationalFinanceState(data).then(()=>setSyncStatus("synced")).catch(error=>{console.error("Error de sincronización con Supabase",error);setSyncStatus("setup")});
     },500);
     return ()=>window.clearTimeout(timer);
-  },[transactions,savings,savingsGoals,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories,ready,syncStatus]);
+  },[transactions,savings,savingsGoals,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories,ready]);
   const activePeriod=`${selectedYear}-${String(selectedMonth+1).padStart(2,"0")}`;
   const activeSubGroup=expenseModal?.kind==="sub"?expenseGroups.find(group=>group.id===expenseModal.groupId):undefined;
   const currentSubTotal=activeSubGroup?.items.reduce((sum,item)=>sum+item.amount,0)??0;
@@ -252,7 +221,6 @@ export default function Home() {
     const requiresConfirmation=planned&&fd.get("requiresConfirmation")==="on";
     setTransactions(prev => {
       const next = [{ id, title, category, account, date:"Ahora", amount, kind, period:activePeriod, expenseSource:source, sourceId:source?id:undefined, savingDestination:kind==="expense"&&category==="Ahorro"?savingDestination:undefined, planned, requiresConfirmation, completed:planned?false:true }, ...prev];
-      localStorage.setItem("finanza-transactions", JSON.stringify(next));
       return next;
     });
     if(kind==="expense"&&expenseType==="fixed") setFixedExpenses(items=>[{id,name:title,category,amount,account,transactionId:id,requiresConfirmation,completed:planned?false:true},...items]);
@@ -285,7 +253,6 @@ export default function Home() {
   function changeSavings(amount:number) {
     setSavings(value => {
       const next = Math.max(0, value + amount);
-      localStorage.setItem("finanza-savings", String(next));
       return next;
     });
     setNotice(amount > 0 ? `Se agregaron S/ ${amount} a tu ahorro general` : `Se retiraron S/ ${Math.abs(amount)} del ahorro general`);
@@ -328,7 +295,6 @@ export default function Home() {
     if(!confirmed) { setDeleteConfirmation({message:"Eliminarás este movimiento. Esta acción se sincronizará con Supabase.",onConfirm:()=>removeTransaction(id,true)}); return; }
     setTransactions(previous => {
       const next = previous.filter(item => item.id !== id);
-      localStorage.setItem("finanza-transactions", JSON.stringify(next));
       return next;
     });
     setNotice("Movimiento eliminado");
@@ -342,9 +308,9 @@ export default function Home() {
     const source=transaction?.expenseSource??virtualExpense?.expenseSource??inferredSource;
     const expenseId=transaction?.sourceId??virtualExpense?.sourceId??(inferredSource?transaction?.id:undefined);
     if(source&&expenseId) {
-      if(source==="fixed") setFixedExpenses(items=>items.filter(item=>item.id!==expenseId));
-      if(source==="monthly") setMonthlyExpenses(items=>items.filter(item=>item.id!==expenseId));
-      if(source==="category") setExpenseGroups(groups=>groups.filter(group=>group.id!==expenseId));
+      if(source==="fixed") { const expense=fixedExpenses.find(item=>item.id===expenseId); void deleteRelationalRecord("fixed_expenses",expense?.dbId);setFixedExpenses(items=>items.filter(item=>item.id!==expenseId)); }
+      if(source==="monthly") { const expense=monthlyExpenses.find(item=>item.id===expenseId); void deleteRelationalRecord("monthly_expenses",expense?.dbId);setMonthlyExpenses(items=>items.filter(item=>item.id!==expenseId)); }
+      if(source==="category") { const group=expenseGroups.find(item=>item.id===expenseId); void deleteRelationalRecord("expense_groups",group?.dbId);setExpenseGroups(groups=>groups.filter(group=>group.id!==expenseId)); }
     }
     if(transaction?.category==="Reserva de Ahorro") {
       const isGeneral = transaction.title.includes("Reserva General") || transaction.savingDestination === "general" || transaction.savingDestination === undefined;
@@ -362,6 +328,7 @@ export default function Home() {
         }
       }
     }
+    if(transaction?.dbId) void deleteRelationalRecord("transactions",transaction.dbId);
     if(id>=0) setTransactions(previous=>previous.filter(item=>item.id!==id));
     setNotice(source?`${expenseSourceLabel(source)} eliminado`:"Movimiento eliminado y saldo de ahorro revertido");
   }
@@ -440,6 +407,8 @@ export default function Home() {
 
   function removeDetailedExpense(section:"fixed"|"monthly",id:number, confirmed=false) {
     if(!confirmed) { setDeleteConfirmation({message:"Eliminarás este gasto planificado del período.",onConfirm:()=>removeDetailedExpense(section,id,true)}); return; }
+    const entry=(section==="fixed"?fixedExpenses:monthlyExpenses).find(item=>item.id===id);
+    void deleteRelationalRecord(section==="fixed"?"fixed_expenses":"monthly_expenses",entry?.dbId);
     if(section==="fixed") setFixedExpenses(items=>items.filter(item=>item.id!==id));
     else setMonthlyExpenses(items=>items.filter(item=>item.id!==id));
     setTransactions(items=>items.filter(item=>item.id!==id&&item.sourceId!==id));
@@ -458,6 +427,7 @@ export default function Home() {
   function removeSubExpense(groupId:number,itemId:number, confirmed=false) {
     if(!confirmed) { setDeleteConfirmation({message:"Eliminarás este subgasto del detalle planificado.",onConfirm:()=>removeSubExpense(groupId,itemId,true)}); return; }
     const item=expenseGroups.find(group=>group.id===groupId)?.items.find(entry=>entry.id===itemId);
+    void deleteRelationalRecord("expense_items",item?.dbId);
     if(item?.category==="Ahorro"&&item.savingDestination!==undefined) {
       if(item.savingDestination==="general") setSavings(value=>Math.max(0,value-item.amount));
       else setSavingsGoals(items=>items.map(goal=>goal.id===item.savingDestination?{...goal,amount:Math.max(0,goal.amount-item.amount)}:goal));
@@ -504,7 +474,6 @@ export default function Home() {
     };
     setTransactions(prev => {
       const next = [salaryTx, ...prev];
-      localStorage.setItem("finanza-transactions", JSON.stringify(next));
       return next;
     });
     setNotice(`Sueldo de ${monthNames[selectedMonth]} (${profile.currency === "PEN" ? "S/" : profile.currency} ${salary.toLocaleString("es-PE", {minimumFractionDigits: 2})}) registrado`);
@@ -721,7 +690,7 @@ export default function Home() {
       <header>
         <button className="menu" onClick={()=>setMobile(true)}><Menu/></button>
         <div className="search"><Search size={18}/><input aria-label="Buscar movimientos" value={search} onChange={e=>{setSearch(e.target.value);if(e.target.value.trim()) activateModule("Movimientos")}} placeholder="Buscar movimientos..." />{search&&<button aria-label="Limpiar búsqueda" onClick={()=>setSearch("")}><X size={15}/></button>}</div>
-        <div className="header-actions"><span className={`sync-status ${syncStatus}`}>{syncStatus==="synced"?"Supabase sincronizado":syncStatus==="setup"?"Supabase: revisar sincronización":syncStatus==="local"?"Guardado local":"Conectando..."}</span><button className="icon-button"><Bell size={19}/><i/></button><div className="month-picker"><button className="month" onClick={()=>setShowMonthPicker(open=>!open)}>{monthNames[selectedMonth]} {selectedYear} <ChevronDown size={16}/></button>{showMonthPicker&&<div className="month-menu"><div className="month-menu-head"><button type="button" onClick={()=>setSelectedYear(year=>year-1)}>‹</button><strong>{selectedYear}</strong><button type="button" onClick={()=>setSelectedYear(year=>year+1)}>›</button></div><div className="month-options">{monthNames.map((name,index)=>{const enabled=isPeriodEnabled(selectedYear,index);return <button type="button" disabled={!enabled} className={index===selectedMonth?"selected":""} key={name} onClick={()=>{if(!enabled) return;setSelectedMonth(index);setShowMonthPicker(false);setNotice(`Periodo seleccionado: ${name} ${selectedYear}`)}}>{name.slice(0,3)}</button>})}</div></div>}</div><button className="outline" type="button" onClick={closeMonth}>Cerrar {monthNames[selectedMonth]}</button><button className="primary" onClick={()=>setShowModal(true)}><Plus size={18}/>Nuevo movimiento</button></div>
+        <div className="header-actions"><span className={`sync-status ${syncStatus}`}>{syncStatus==="synced"?"Guardado en Supabase":syncStatus==="saving"?"Guardando en Supabase…":syncStatus==="setup"?"Supabase: revisar conexión":"Conectando a Supabase…"}</span><button className="icon-button"><Bell size={19}/><i/></button><div className="month-picker"><button className="month" onClick={()=>setShowMonthPicker(open=>!open)}>{monthNames[selectedMonth]} {selectedYear} <ChevronDown size={16}/></button>{showMonthPicker&&<div className="month-menu"><div className="month-menu-head"><button type="button" onClick={()=>setSelectedYear(year=>year-1)}>‹</button><strong>{selectedYear}</strong><button type="button" onClick={()=>setSelectedYear(year=>year+1)}>›</button></div><div className="month-options">{monthNames.map((name,index)=>{const enabled=isPeriodEnabled(selectedYear,index);return <button type="button" disabled={!enabled} className={index===selectedMonth?"selected":""} key={name} onClick={()=>{if(!enabled) return;setSelectedMonth(index);setShowMonthPicker(false);setNotice(`Periodo seleccionado: ${name} ${selectedYear}`)}}>{name.slice(0,3)}</button>})}</div></div>}</div><button className="outline" type="button" onClick={closeMonth}>Cerrar {monthNames[selectedMonth]}</button><button className="primary" onClick={()=>setShowModal(true)}><Plus size={18}/>Nuevo movimiento</button></div>
       </header>
 
       <div className="content">
@@ -794,7 +763,7 @@ export default function Home() {
           </article>
         </section>
 
-        <section className="accounts"><div className="section-heading"><div><h2>Mis cuentas</h2><p>Conecta y controla todo desde un solo lugar.</p></div><button onClick={()=>setNotice("Conexión bancaria lista para configurar con APIs oficiales")}><Plus size={17}/>Conectar cuenta</button></div><article className="card empty-state"><Landmark/><strong>Aún no hay cuentas conectadas</strong><span>Cuando agregues una, aparecerá aquí con su saldo real.</span></article><button className="reset-demo" onClick={()=>{setTransactions(seed);setSavings(0);setSavingsGoals([]);setFixedExpenses(fixedSeed);setMonthlyExpenses(monthlySeed);setExpenseGroups(groupSeed);setSearch("");localStorage.setItem("finanza-transactions",JSON.stringify(seed));localStorage.setItem("finanza-savings","0");localStorage.setItem("finanza-savings-goals","[]");localStorage.setItem("finanza-fixed-expenses",JSON.stringify(fixedSeed));localStorage.setItem("finanza-monthly-expenses",JSON.stringify(monthlySeed));localStorage.setItem("finanza-expense-groups",JSON.stringify(groupSeed));setNotice("Datos vacíos restaurados")}}>Limpiar datos de prueba</button></section>
+        <section className="accounts"><div className="section-heading"><div><h2>Mis cuentas</h2><p>Conecta y controla todo desde un solo lugar.</p></div><button onClick={()=>setNotice("Conexión bancaria lista para configurar con APIs oficiales")}><Plus size={17}/>Conectar cuenta</button></div><article className="card empty-state"><Landmark/><strong>Aún no hay cuentas conectadas</strong><span>Cuando agregues una, aparecerá aquí con su saldo real.</span></article></section>
         </>}
       </div>
     </main>
