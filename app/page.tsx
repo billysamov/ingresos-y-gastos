@@ -119,34 +119,21 @@ export default function Home() {
             const remoteMonthly = Array.isArray(remote.monthlyExpenses) ? (remote.monthlyExpenses as ExpenseEntry[]).filter(item=>!demoMonthlyExpenseIds.has(Number(item.id))).map(item=>({...item,period:item.period??initialPeriod})) : [];
             const remoteGroups = Array.isArray(remote.expenseGroups) ? (remote.expenseGroups as ExpenseGroup[]).filter(item=>!demoGroupIds.has(Number(item.id))) : [];
 
-            const txMap = new Map<number|string, Tx>();
-            for(const item of local.transactions) txMap.set(item.id, item);
-            for(const item of remoteTx) txMap.set(item.id, item);
-
-            const fixedMap = new Map<number|string, ExpenseEntry>();
-            for(const item of local.fixedExpenses) fixedMap.set(item.id, item);
-            for(const item of remoteFixed) fixedMap.set(item.id, item);
-
-            const monthlyMap = new Map<number|string, ExpenseEntry>();
-            for(const item of local.monthlyExpenses) monthlyMap.set(item.id, item);
-            for(const item of remoteMonthly) monthlyMap.set(item.id, item);
-
-            const groupMap = new Map<number|string, ExpenseGroup>();
-            for(const item of local.expenseGroups) groupMap.set(item.id, item);
-            for(const item of remoteGroups) groupMap.set(item.id, item);
-
+            // Con Supabase conectado, la nube es la fuente única de datos.
+            // No se mezclan copias antiguas de localStorage: una eliminación debe
+            // mantenerse eliminada al abrir nuevamente la aplicación.
             source={
-              transactions: Array.from(txMap.values()),
-              savings: remote.savings === 90 || local.savings === 90 ? 0 : (typeof remote.savings === "number" ? remote.savings : 0),
-              savingsGoals: Array.isArray(remote.savingsGoals) && remote.savingsGoals.length > 0 ? (remote.savingsGoals as SavingsGoal[]) : local.savingsGoals,
-              fixedExpenses: Array.from(fixedMap.values()),
-              monthlyExpenses: Array.from(monthlyMap.values()),
-              expenseGroups: Array.from(groupMap.values()),
-              profile: typeof remote.profile === "object" && remote.profile ? { ...local.profile, ...(remote.profile as Profile) } : local.profile,
-              budgets: Array.isArray(remote.budgets) && remote.budgets.length > 0 ? (remote.budgets as Budget[]) : local.budgets,
-              monthAccess: remote.periodVersion === 2 && typeof remote.monthAccess === "object" && remote.monthAccess ? (remote.monthAccess as MonthAccess) : local.monthAccess,
-              categories: Array.from(new Set([...local.categories, ...(Array.isArray(remote.categories) ? (remote.categories as string[]) : [])])).filter(c => c !== "Ahorro"),
-              incomeCategories: Array.from(new Set([...local.incomeCategories, ...(Array.isArray(remote.incomeCategories) ? (remote.incomeCategories as string[]) : [])])),
+              transactions: remoteTx,
+              savings: typeof remote.savings === "number" ? remote.savings : 0,
+              savingsGoals: Array.isArray(remote.savingsGoals) ? (remote.savingsGoals as SavingsGoal[]) : [],
+              fixedExpenses: remoteFixed,
+              monthlyExpenses: remoteMonthly,
+              expenseGroups: remoteGroups,
+              profile: typeof remote.profile === "object" && remote.profile ? { fullName:"Mi perfil",currency:"PEN", ...(remote.profile as Profile) } : {fullName:"Mi perfil",currency:"PEN"},
+              budgets: Array.isArray(remote.budgets) ? (remote.budgets as Budget[]) : [],
+              monthAccess: remote.periodVersion === 2 && typeof remote.monthAccess === "object" && remote.monthAccess ? (remote.monthAccess as MonthAccess) : {year:2026,month:7},
+              categories: Array.from(new Set([...defaultCategories, ...(Array.isArray(remote.categories) ? (remote.categories as string[]) : [])])).filter(c => c !== "Ahorro"),
+              incomeCategories: Array.from(new Set([...defaultIncomeCategories, ...(Array.isArray(remote.incomeCategories) ? (remote.incomeCategories as string[]) : [])])),
             };
           }
           setSyncStatus("synced");
