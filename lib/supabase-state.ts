@@ -71,14 +71,17 @@ type FinanceData = { transactions: JsonRow[]; savings: number; savingsGoals: Jso
 async function patchOrInsert(table: string, dbId: unknown, body: JsonRow, localId?: unknown, dbUpdatedAt?: unknown) {
   const memoryKey = localId === undefined ? undefined : `${table}:${localId}`;
   const remoteId = dbId ?? (memoryKey ? remoteIds.get(memoryKey) : undefined);
-  const version = memoryKey ? (remoteVersions.get(memoryKey) ?? dbUpdatedAt) : dbUpdatedAt;
   const payload = JSON.stringify({ ...body, updated_at: new Date().toISOString() });
   if (remoteId) {
-    const filter = version ? `&updated_at=eq.${encodeURIComponent(String(version))}` : "";
-    const updated = await request(`${table}?id=eq.${remoteId}${filter}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: payload });
-    if (!updated?.[0]) throw new Error("Conflicto: este registro fue actualizado desde otro dispositivo. Recarga antes de volver a guardarlo.");
-    if (memoryKey && updated[0].updated_at) remoteVersions.set(memoryKey, updated[0].updated_at);
-    return updated;
+    try {
+      const updated = await request(`${table}?id=eq.${remoteId}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: payload });
+      if (updated && updated[0]) {
+        if (memoryKey && updated[0].updated_at) remoteVersions.set(memoryKey, updated[0].updated_at);
+        return updated;
+      }
+    } catch (err) {
+      console.warn(`Error al actualizar fila en ${table} con id=${remoteId}, intentando inserción...`, err);
+    }
   }
   const created = await request(table, { method: "POST", headers: { Prefer: "return=representation" }, body: payload });
   if (memoryKey && created?.[0]?.id) remoteIds.set(memoryKey, created[0].id);

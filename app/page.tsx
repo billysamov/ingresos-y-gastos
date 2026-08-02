@@ -137,7 +137,7 @@ export default function Home() {
               fixedExpenses: remoteFixed,
               monthlyExpenses: remoteMonthly,
               expenseGroups: remoteGroups,
-              profile: typeof remote.profile === "object" && remote.profile ? { fullName:"Mi perfil",currency:"PEN", ...(remote.profile as Profile) } : {fullName:"Mi perfil",currency:"PEN"},
+              profile: typeof remote.profile === "object" && remote.profile ? { ...{ fullName: "Mi perfil", currency: "PEN" }, ...(remote.profile as Profile) } : { fullName: "Mi perfil", currency: "PEN" },
               budgets: Array.isArray(remote.budgets) ? (remote.budgets as Budget[]) : [],
               monthAccess: typeof remote.monthAccess === "object" && remote.monthAccess ? (remote.monthAccess as MonthAccess) : {year:2026,month:7},
               categories: Array.from(new Set([...defaultCategories, ...(Array.isArray(remote.categories) ? (remote.categories as string[]) : [])])).filter(c => c !== "Ahorro"),
@@ -158,7 +158,7 @@ export default function Home() {
     void hydrate();
   },[]);
   useEffect(()=>{
-    if(!ready||!isSupabaseConfigured||syncStatus==="setup") return;
+    if(!ready||!isSupabaseConfigured) return;
     // La primera carga solo hidrata la interfaz desde Supabase; no debe volver a
     // escribir nada ni mostrar "Guardando". A partir del siguiente cambio real,
     // el efecto sí persiste la fila modificada.
@@ -166,7 +166,13 @@ export default function Home() {
     const timer=window.setTimeout(()=>{
       setSyncStatus("saving");
       const data={transactions,savings,savingsGoals,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories};
-      void saveRelationalFinanceState(data).then(()=>setSyncStatus("synced")).catch(error=>{console.error("Error de sincronización con Supabase",error);setSyncStatus("setup")});
+      void saveRelationalFinanceState(data)
+        .then(()=>setSyncStatus("synced"))
+        .catch(error=>{
+          console.error("Error de sincronización con Supabase",error);
+          setSyncStatus("setup");
+          setNotice(`⚠️ Error de guardado: ${error instanceof Error ? error.message : "No se pudo sincronizar con Supabase"}`);
+        });
     },500);
     return ()=>window.clearTimeout(timer);
   },[transactions,savings,savingsGoals,fixedExpenses,monthlyExpenses,expenseGroups,profile,budgets,monthAccess,categories,incomeCategories,ready]);
