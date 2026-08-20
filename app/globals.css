@@ -1,6 +1,28 @@
 @import "tailwindcss";
 
-header{height:82px;background:rgba(255,255,255,0.95);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid #eef2f7;display:flex;align-items:center;justify-space-between;padding:0 36px;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(16,24,40,0.03)}
+:root{--ink:#16213b;--muted:#7c879d;--line:#e8ecf3;--blue:#1767e8;--green:#16ad79;--orange:#ff9148;--purple:#8957da;--bg:#f6f8fc}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+.app-shell{min-height:100vh}
+.sidebar{position:fixed;inset:0 auto 0 0;width:230px;background:#fff;border-right:1px solid var(--line);padding:26px 18px;display:flex;flex-direction:column;z-index:20}
+.brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;height:45px;padding:0 9px}
+.brand-mark{width:34px;height:34px;border-radius:10px;background:#1268e9;color:#fff;display:grid;place-items:center}
+.close-mobile{display:none}
+.sidebar nav{margin-top:32px;display:grid;gap:6px}
+.sidebar button{border:0;background:transparent;color:#69758c;font:inherit;cursor:pointer}
+.sidebar nav button,.sidebar-bottom>button{width:100%;display:flex;align-items:center;gap:13px;padding:12px 13px;border-radius:9px;font-weight:600;font-size:14px;text-align:left}
+.sidebar nav button.active{background:#edf4ff;color:var(--blue)}
+.sidebar-bottom{margin-top:auto}
+.profile{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);padding:20px 6px 0;margin-top:10px}
+.avatar{width:36px;height:36px;border-radius:50%;background:#ffe1b8;color:#8e5215;font-weight:700;display:grid;place-items:center;font-size:12px}
+.profile div:nth-child(2){display:grid;gap:4px;min-width:0}
+.profile strong{font-size:12px}
+.profile span{font-size:11px;color:var(--muted)}
+.profile>svg{margin-left:auto;color:#9aa4b7}
+.menu{display:none}
+main{margin-left:230px}
+
+header{height:82px;background:rgba(255,255,255,0.95);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid #eef2f7;display:flex;align-items:center;justify-content:space-between;padding:0 36px;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(16,24,40,0.03)}
 .search{display:flex;align-items:center;gap:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:0 16px;width:290px;height:44px;color:#64748b;transition:all 0.2s ease}
 .search:focus-within{background:#ffffff;border-color:#1767e8;box-shadow:0 0 0 3px rgba(23,103,232,0.12);width:320px}
 .search input{border:0;outline:0;background:transparent;width:100%;font-size:13px;color:#1e293b}
@@ -48,3 +70,40 @@ header{height:82px;background:rgba(255,255,255,0.95);backdrop-filter:blur(16px);
 .expense-row{grid-template-columns:42px minmax(0,1fr) auto auto auto 30px}.expense-row .add-subexpense{padding:7px 9px;white-space:nowrap}.expense-group-head{grid-template-columns:minmax(0,1fr) 120px auto auto 32px}.expense-group-toggle{min-width:0}.expense-group-toggle>div{min-width:0}.expense-group-toggle strong,.expense-group-toggle span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:800px){.expense-row{grid-template-columns:40px minmax(0,1fr) auto auto auto 30px}.expense-group-head{display:flex;flex-wrap:wrap;align-items:center;gap:9px}.expense-group-toggle{flex:1 1 42%;min-width:130px}.expense-group-total{order:5;flex-basis:100%;margin-left:27px;text-align:left}.expense-group-head .add-subexpense{order:3;margin:0;grid-column:auto;grid-row:auto}.expense-group-head>.expense-delete{order:4;grid-column:auto;grid-row:auto}}
 @media(max-width:520px){.expense-row{grid-template-columns:38px minmax(0,1fr) auto auto}.expense-row .expense-value{grid-column:2;text-align:left}.expense-row .add-subexpense{grid-column:3;grid-row:1}.expense-row>.expense-delete{grid-column:4;grid-row:1}.expense-group-head{align-items:flex-start}.expense-group-toggle{flex-basis:100%}.expense-group-head .add-subexpense{font-size:9px;padding:7px 8px}.subexpense-row{grid-template-columns:8px minmax(0,1fr) auto auto 28px}.subexpense-row .add-subexpense{padding:6px 8px;font-size:9px}}
+
+/* --- MÓDULO ALMACÉN Y DESPENSA --- */
+.warehouse-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;margin:20px 0}
+.warehouse-search{width:360px!important;max-width:100%}
+.warehouse-filters{display:flex;gap:8px;flex-wrap:wrap}
+.warehouse-filters button{border:1px solid var(--line);background:#fff;color:#5f6b81;padding:8px 14px;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s ease}
+.warehouse-filters button.active,.warehouse-filters button:hover{background:#eaf2ff;border-color:#bad5fb;color:var(--blue)}
+.warehouse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px;margin-top:10px}
+.warehouse-card{padding:22px;display:flex;flex-direction:column;gap:14px;border-radius:14px;border:1px solid #e2e8f0;background:#fff;transition:transform .2s,box-shadow .2s;position:relative}
+.warehouse-card:hover{box-shadow:0 8px 24px rgba(16,24,40,0.06);transform:translateY(-2px)}
+.warehouse-card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.warehouse-badges{display:flex;gap:6px;flex-wrap:wrap}
+.warehouse-badge{font-size:10px;font-weight:700;padding:4px 9px;border-radius:6px}
+.warehouse-badge.category{background:#eaf2ff;color:var(--blue);border:1px solid #d4e5ff}
+.warehouse-badge.package{background:#f8fafc;color:#475569;border:1px solid #e2e8f0}
+.warehouse-price{text-align:right}
+.warehouse-price span{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px}
+.warehouse-price strong{font-size:17px;color:var(--ink)}
+.warehouse-title{font-size:16px;font-weight:700;margin:0;color:var(--ink);line-height:1.3}
+.warehouse-specs{display:grid;gap:8px;background:#f8fafc;padding:12px 14px;border-radius:10px;border:1px solid #edf2f7;font-size:11px}
+.spec-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.spec-label{color:var(--muted);font-weight:500}
+.spec-val{font-weight:700;color:var(--ink)}
+.warehouse-notes{background:#f0f7ff;border-left:3px solid var(--blue);padding:9px 12px;border-radius:0 8px 8px 0;font-size:11px;color:#334155;margin-top:auto}
+.warehouse-notes p{margin:0;line-height:1.4}
+.warehouse-card-actions{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.warehouse-buy-btn{width:100%;justify-content:center;font-size:12px!important;padding:10px 14px!important;border-radius:10px!important}
+.warehouse-mini-actions{display:flex;justify-content:space-between;align-items:center}
+.warehouse-mini-actions .outline{margin-top:0;width:auto;padding:7px 14px;font-size:11px;border-color:#dfe4ec;color:#475569;border-radius:9px}
+.warehouse-mini-actions .outline:hover{background:#f8fafc;color:#1e293b}
+
+/* --- SELECTOR JALAR DEL ALMACÉN EN MODAL --- */
+.warehouse-quick-pick{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 14px;margin-bottom:16px;display:grid;gap:8px}
+.warehouse-quick-pick-label{font-size:11px;font-weight:700;color:var(--blue);display:flex;align-items:center;gap:6px}
+.warehouse-quick-pick select{background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:9px 11px;font-size:12px;width:100%;outline:0;color:#1e293b;font-weight:600;cursor:pointer}
+.warehouse-quick-pick select:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(23,103,232,0.15)}
+

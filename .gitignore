@@ -44,4 +44,12 @@ next-env.d.ts
 
 # logs
 *.log
+dev-server-error.log
+dev-server.log
 
+# build artifacts
+.site-package/
+landing-saas/
+finanza-site.tar.gz
+*.xlsx
+*.csv
