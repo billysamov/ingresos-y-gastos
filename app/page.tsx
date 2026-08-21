@@ -5,8 +5,8 @@ import { ArrowDownLeft, ArrowRight, ArrowUpRight, Bell, BriefcaseBusiness, Calen
 import { deleteRelationalRecord, isSupabaseConfigured, loadRelationalFinanceState, saveRelationalFinanceState } from "../lib/supabase-state";
 
 type ExpenseSource = "fixed"|"monthly"|"category";
-type Tx = { id:number; dbId?:string; dbUpdatedAt?:string; title:string; category:string; account:string; date:string; amount:number; kind:"income"|"expense"; period?:string; expenseSource?:ExpenseSource; sourceId?:number; groupName?:string; savingDestination?:"general"|number; planned?:boolean; requiresConfirmation?:boolean; completed?:boolean };
-type ExpenseEntry = { id:number; dbId?:string; dbUpdatedAt?:string; name:string; category:string; amount:number; period?:string; account?:string; transactionId?:number; savingDestination?:"general"|number; requiresConfirmation?:boolean; completed?:boolean };
+type Tx = { id:number; dbId?:string; dbUpdatedAt?:string; title:string; category:string; account:string; date:string; amount:number; kind:"income"|"expense"; period?:string; expenseSource?:ExpenseSource; sourceId?:number; groupName?:string; savingDestination?:"general"|number; planned?:boolean; requiresConfirmation?:boolean; completed?:boolean; warehouseItemId?:number };
+type ExpenseEntry = { id:number; dbId?:string; dbUpdatedAt?:string; name:string; category:string; amount:number; period?:string; account?:string; transactionId?:number; savingDestination?:"general"|number; requiresConfirmation?:boolean; completed?:boolean; warehouseItemId?:number };
 type ExpenseGroup = { id:number; dbId?:string; dbUpdatedAt?:string; name:string; budget:number; items:ExpenseEntry[] };
 type ExpenseModal = { kind:"fixed"|"monthly"|"group"|"sub"; groupId?:number } | null;
 type ExpenseEdit = { kind:"group"; groupId:number } | { kind:"sub"; groupId:number; itemId:number } | null;
@@ -383,7 +383,7 @@ function Account({logo,color,name,type,amount}:{logo:string,color:string,name:st
 export default function Home() {
   function ModuleHeading({eyebrow,title,text,action}:{eyebrow:string,title:string,text:string,action?:React.ReactNode}) { return <div className="page-heading module-heading"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{text}</p></div>{action}</div> }
   function MiniStat({label,value,tone="blue",plain=false}:{label:string,value:number,tone?:string,plain?:boolean}) { return <article className="card mini-stat"><span>{label}</span><strong>{plain?value:`S/ ${value.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</strong><i className={tone}/></article> }
-  function TransactionList({items,onDelete,onToggle,onEdit}:{items:Tx[],onDelete:(id:number)=>void;onToggle:(item:Tx)=>void;onEdit:(item:Tx)=>void}) { return <div className="tx-list">{items.map(t=><div className="tx" key={`${t.expenseSource??"transaction"}-${t.id}`}><div className={`tx-icon ${t.kind}`}>{categoryIcon(t.category,t.kind)}</div><div className="tx-main"><strong>{t.title}</strong>{t.expenseSource&&<small className="transaction-origin">{expenseSourceLabel(t.expenseSource,t.groupName)}</small>}<span>{t.category} · {t.account}</span></div><div className="tx-date">{t.requiresConfirmation?(t.completed?"Realizado":"Pendiente"):t.date}</div><div className={`tx-amount ${t.kind}`}>{t.kind==="income"?"+":"−"} S/ {t.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</div>{t.requiresConfirmation&&<button className={`completion-toggle ${t.completed?"done":""}`} aria-label={`${t.completed?"Marcar pendiente":"Marcar realizado"} ${t.title}`} title={t.completed?"Realizado: volver a pendiente":"Marcar como realizado"} onClick={()=>onToggle(t)}>{t.completed?<Check size={15}/>:<Circle size={15}/>}</button>}{t.id>=0&&<button className="edit-tx" aria-label={`Editar ${t.title}`} title="Editar movimiento" onClick={()=>onEdit(t)}><Pencil size={14}/></button>}<button className="delete-tx" aria-label={`Eliminar ${t.title}`} onClick={()=>onDelete(t.id)}><Trash2 size={14}/></button></div>)}{items.length===0&&<div className="empty-state"><Search size={22}/><strong>No encontramos movimientos</strong><span>No hay coincidencias en {monthNames[selectedMonth]} {selectedYear}.</span></div>}</div> }
+  function TransactionList({items,onDelete,onToggle,onEdit}:{items:Tx[],onDelete:(id:number)=>void;onToggle:(item:Tx)=>void;onEdit:(item:Tx)=>void}) { return <div className="tx-list">{items.map(t=><div className="tx" key={`${t.expenseSource??"transaction"}-${t.id}`}><div className={`tx-icon ${t.kind}`}>{categoryIcon(t.category,t.kind)}</div><div className="tx-main"><div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}><strong>{t.title}</strong>{t.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}</div>{t.expenseSource&&<small className="transaction-origin">{expenseSourceLabel(t.expenseSource,t.groupName)}</small>}<span>{t.category} · {t.account}</span></div><div className="tx-date">{t.requiresConfirmation?(t.completed?"Realizado":"Pendiente"):t.date}</div><div className={`tx-amount ${t.kind}`}>{t.kind==="income"?"+":"−"} S/ {t.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</div>{t.requiresConfirmation&&<button className={`completion-toggle ${t.completed?"done":""}`} aria-label={`${t.completed?"Marcar pendiente":"Marcar realizado"} ${t.title}`} title={t.completed?"Realizado: volver a pendiente":"Marcar como realizado"} onClick={()=>onToggle(t)}>{t.completed?<Check size={15}/>:<Circle size={15}/>}</button>}{t.id>=0&&<button className="edit-tx" aria-label={`Editar ${t.title}`} title="Editar movimiento" onClick={()=>onEdit(t)}><Pencil size={14}/></button>}<button className="delete-tx" aria-label={`Eliminar ${t.title}`} onClick={()=>onDelete(t.id)}><Trash2 size={14}/></button></div>)}{items.length===0&&<div className="empty-state"><Search size={22}/><strong>No encontramos movimientos</strong><span>No hay coincidencias en {monthNames[selectedMonth]} {selectedYear}.</span></div>}</div> }
 
   const [active, setActive] = useState("Resumen");
   const [editingMovement, setEditingMovement] = useState<Tx|null>(null);
@@ -406,8 +406,14 @@ export default function Home() {
   const [monthlyExpenses, setMonthlyExpenses] = useState<ExpenseEntry[]>(monthlySeed);
   const [expenseGroups, setExpenseGroups] = useState<ExpenseGroup[]>(groupSeed);
   const [expenseModal, setExpenseModal] = useState<ExpenseModal>(null);
+  const [expenseModalWarehouseId, setExpenseModalWarehouseId] = useState<number | null>(null);
+  const [expenseModalTitle, setExpenseModalTitle] = useState("");
+  const [expenseModalAmount, setExpenseModalAmount] = useState("");
+  const [expenseModalCategory, setExpenseModalCategory] = useState("");
+  const [selectedMovementWarehouseId, setSelectedMovementWarehouseId] = useState<number | null>(null);
   const [subRows, setSubRows] = useState<number[]>([1]);
   const [subNames, setSubNames] = useState<Record<number,string>>({});
+  const [subWarehouseIds, setSubWarehouseIds] = useState<Record<number,number>>({});
   const [subCategories, setSubCategories] = useState<Record<number,string>>({});
   const [subSavingDestinations, setSubSavingDestinations] = useState<Record<number,"general"|number>>({});
   const [subAmounts, setSubAmounts] = useState<Record<number,string>>({});
@@ -643,6 +649,7 @@ export default function Home() {
   function openNewMovementModal() {
     setMovementTitle("");
     setMovementAmount("");
+    setSelectedMovementWarehouseId(null);
     setShowModal(true);
   }
 
@@ -650,6 +657,56 @@ export default function Home() {
     setShowModal(false);
     setMovementTitle("");
     setMovementAmount("");
+    setSelectedMovementWarehouseId(null);
+  }
+
+  function recordWarehousePurchaseHistory(warehouseId: number, totalPrice: number, period: string, options?: { account?: string; store?: string; notes?: string; packageType?: string; packageFactor?: number }) {
+    const item = warehouseItems.find(w => w.id === warehouseId);
+    if (!item) return null;
+
+    const factor = options?.packageFactor && options.packageFactor > 0 ? options.packageFactor : (item.packageFactor > 0 ? item.packageFactor : 1);
+    const unitPrice = Number((totalPrice / factor).toFixed(2));
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const pkgType = options?.packageType || item.packageType;
+
+    const lastRecord = item.priceHistory && item.priceHistory.length > 0 ? item.priceHistory[0] : null;
+    const prevUnit = lastRecord ? (lastRecord.unitPrice || (lastRecord.packageFactor > 0 ? lastRecord.totalPrice / lastRecord.packageFactor : lastRecord.totalPrice)) : (item.packageFactor > 0 ? item.estimatedPrice / item.packageFactor : item.estimatedPrice);
+    const diff = unitPrice - prevUnit;
+    const percent = prevUnit > 0 ? Math.abs((diff / prevUnit) * 100).toFixed(1) : "0";
+
+    let trendMsg = "";
+    if (Math.abs(diff) < 0.01) {
+      trendMsg = `Mismo precio (S/ ${unitPrice.toFixed(2)}/${item.baseUnit})`;
+    } else if (diff < 0) {
+      trendMsg = `🔻 Ahorro de S/ ${Math.abs(diff).toFixed(2)}/${item.baseUnit} (-${percent}%)`;
+    } else {
+      trendMsg = `🔺 Subió +S/ ${diff.toFixed(2)}/${item.baseUnit} (+${percent}%)`;
+    }
+
+    const newPriceRecord: PriceRecord = {
+      id: `pr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      period,
+      date: dateStr,
+      packageType: pkgType,
+      packageFactor: factor,
+      baseUnit: item.baseUnit,
+      totalPrice,
+      unitPrice,
+      store: options?.store || item.store,
+      notes: options?.notes || undefined
+    };
+
+    setWarehouseItems(items => items.map(w => w.id === warehouseId ? {
+      ...w,
+      packageType: pkgType,
+      packageFactor: factor,
+      estimatedPrice: totalPrice,
+      store: options?.store || w.store,
+      lastPurchasedPeriod: period,
+      priceHistory: [newPriceRecord, ...(w.priceHistory || [])]
+    } : w));
+
+    return { item, unitPrice, diff, trendMsg };
   }
 
   function openBuyWarehouseModal(item: WarehouseItem) {
@@ -675,31 +732,25 @@ export default function Home() {
     const { packageType, packageFactor, quantity, totalPrice, destination, account, store, notes } = warehouseBuyModal;
     
     const effectiveFactor = (packageFactor > 0 ? packageFactor : 1) * (quantity > 0 ? quantity : 1);
-    const unitPrice = totalPrice / effectiveFactor;
-    const dateStr = new Date().toISOString().slice(0, 10);
     const title = `${item.name} (${packageType}${quantity > 1 ? ` x ${quantity}` : ""})`;
     const id = Date.now();
 
-    // 1. Check price trend vs previous purchase
-    const lastRecord = item.priceHistory && item.priceHistory.length > 0 ? item.priceHistory[0] : null;
-    const prevUnit = lastRecord ? (lastRecord.unitPrice || lastRecord.totalPrice / (lastRecord.packageFactor || 1)) : (item.estimatedPrice / (item.packageFactor || 1));
-    const diff = unitPrice - prevUnit;
-    const percent = prevUnit > 0 ? Math.abs((diff / prevUnit) * 100).toFixed(1) : "0";
+    // 1. Update warehouse price history with shared function
+    const res = recordWarehousePurchaseHistory(item.id, totalPrice, activePeriod, {
+      account,
+      store,
+      notes,
+      packageType: `${packageType}${quantity > 1 ? ` x ${quantity}` : ""}`,
+      packageFactor: effectiveFactor
+    });
 
-    let trendMsg = "";
-    if (Math.abs(diff) < 0.01) {
-      trendMsg = `Mismo precio (S/ ${unitPrice.toFixed(2)}/${item.baseUnit})`;
-    } else if (diff < 0) {
-      trendMsg = `🔻 Ahorro de S/ ${Math.abs(diff).toFixed(2)}/${item.baseUnit} (-${percent}%)`;
-    } else {
-      trendMsg = `🔺 Subió +S/ ${diff.toFixed(2)}/${item.baseUnit} (+${percent}%)`;
-    }
+    const trendMsg = res?.trendMsg || "";
 
-    // 2. Add as transaction or sub-expense
+    // 2. Add as transaction or sub-expense with warehouseItemId link
     if (typeof destination === "number") {
       setExpenseGroups(groups => groups.map(g => g.id === destination ? {
         ...g,
-        items: [{ id, name: title, category: item.category, amount: totalPrice, period: activePeriod, account, completed: true, requiresConfirmation: true }, ...g.items]
+        items: [{ id, name: title, category: item.category, amount: totalPrice, period: activePeriod, account, completed: true, requiresConfirmation: true, warehouseItemId: item.id }, ...g.items]
       } : g));
     } else {
       setTransactions(prev => [{
@@ -713,33 +764,10 @@ export default function Home() {
         period: activePeriod,
         expenseSource: "monthly",
         completed: true,
-        requiresConfirmation: false
+        requiresConfirmation: false,
+        warehouseItemId: item.id
       }, ...prev]);
     }
-
-    // 3. Log new price record in warehouse item
-    const newPriceRecord: PriceRecord = {
-      id: `pr-${Date.now()}`,
-      period: activePeriod,
-      date: dateStr,
-      packageType: `${packageType}${quantity > 1 ? ` x ${quantity}` : ""}`,
-      packageFactor: effectiveFactor,
-      baseUnit: item.baseUnit,
-      totalPrice,
-      unitPrice: Number(unitPrice.toFixed(2)),
-      store: store || item.store,
-      notes: notes || undefined
-    };
-
-    setWarehouseItems(items => items.map(w => w.id === item.id ? {
-      ...w,
-      packageType,
-      packageFactor: packageFactor > 0 ? packageFactor : w.packageFactor,
-      estimatedPrice: totalPrice,
-      store: store || w.store,
-      lastPurchasedPeriod: activePeriod,
-      priceHistory: [newPriceRecord, ...(w.priceHistory || [])]
-    } : w));
 
     setWarehouseBuyModal({ open: false, item: null, packageType: "", packageFactor: 1, quantity: 1, totalPrice: 0, destination: "movement", account: "Efectivo", store: "", notes: "" });
     setNotice(`✓ Compra registrada de "${item.name}" — ${trendMsg}`);
@@ -819,31 +847,31 @@ export default function Home() {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const kind = fd.get("kind") as "income"|"expense";
-    const id=Date.now(); const title=String(fd.get("title")||movementTitle).trim(); const category=String(fd.get("category")); const amount=Number(fd.get("amount")||movementAmount);
+    const id=Date.now(); const title=String(fd.get("title")||movementTitle).trim(); const category=String(fd.get("category")||movementCategory); const amount=Number(fd.get("amount")||movementAmount);
     const account=String(fd.get("account"));
     const source=kind==="expense"&&expenseType!=="group"?expenseType:undefined;
     const planned=kind==="expense"&&fd.get("planned")==="on";
     const requiresConfirmation=planned&&fd.get("requiresConfirmation")==="on";
+
+    let trendMsg = "";
+    if (kind === "expense" && selectedMovementWarehouseId && amount > 0) {
+      const res = recordWarehousePurchaseHistory(selectedMovementWarehouseId, amount, activePeriod, { account });
+      if (res) trendMsg = ` (${res.trendMsg})`;
+    }
+
     setTransactions(prev => {
-      const next = [{ id, title, category, account, date:"Ahora", amount, kind, period:activePeriod, expenseSource:source, sourceId:source?id:undefined, savingDestination:kind==="expense"&&category==="Ahorro"?savingDestination:undefined, planned, requiresConfirmation, completed:planned?false:true }, ...prev];
+      const next = [{ id, title, category, account, date:"Ahora", amount, kind, period:activePeriod, expenseSource:source, sourceId:source?id:undefined, savingDestination:kind==="expense"&&category==="Ahorro"?savingDestination:undefined, planned, requiresConfirmation, completed:planned?false:true, warehouseItemId:selectedMovementWarehouseId||undefined }, ...prev];
       return next;
     });
-    if(kind==="expense"&&expenseType==="fixed") setFixedExpenses(items=>[{id,name:title,category,amount,account,transactionId:id,requiresConfirmation,completed:planned?false:true},...items]);
-    if(kind==="expense"&&expenseType==="monthly") setMonthlyExpenses(items=>[{id,name:title,category,amount,account,period:activePeriod,transactionId:id,requiresConfirmation,completed:planned?false:true},...items]);
+    if(kind==="expense"&&expenseType==="fixed") setFixedExpenses(items=>[{id,name:title,category,amount,account,transactionId:id,requiresConfirmation,completed:planned?false:true,warehouseItemId:selectedMovementWarehouseId||undefined},...items]);
+    if(kind==="expense"&&expenseType==="monthly") setMonthlyExpenses(items=>[{id,name:title,category,amount,account,period:activePeriod,transactionId:id,requiresConfirmation,completed:planned?false:true,warehouseItemId:selectedMovementWarehouseId||undefined},...items]);
     if(kind==="expense"&&category==="Ahorro") {
       if(savingDestination==="general") setSavings(value=>value+amount);
       else setSavingsGoals(items=>items.map(goal=>goal.id===savingDestination?{...goal,amount:Math.min(goal.target,goal.amount+amount)}:goal));
     }
-    // Update lastPurchasedPeriod if this purchase title mentions a warehouse item
-    setWarehouseItems(items => items.map(w => {
-      if (title.toLowerCase().includes(w.name.toLowerCase())) {
-        return { ...w, lastPurchasedPeriod: activePeriod };
-      }
-      return w;
-    }));
     closeMovementModal();
-    setNotice(planned?"Pronóstico guardado como pendiente":"Movimiento registrado correctamente");
-    setTimeout(()=>setNotice(""), 2600);
+    setNotice(planned?"Pronóstico guardado como pendiente":`Movimiento registrado correctamente${trendMsg}`);
+    setTimeout(()=>setNotice(""), 3500);
   }
 
   function saveMovementEdit(e:React.FormEvent<HTMLFormElement>) {
@@ -979,25 +1007,59 @@ export default function Home() {
     e.preventDefault();
     if(!expenseModal) return;
     const fd=new FormData(e.currentTarget);
-    const name=String(fd.get("name")||"").trim();
-    const amount=Number(fd.get("amount")||0);
-    const category=String(fd.get("category")||"Otros");
+    const name=String(fd.get("name")||expenseModalTitle).trim();
+    const amount=Number(fd.get("amount")||expenseModalAmount||0);
+    const category=String(fd.get("category")||expenseModalCategory||"Otros");
     const account=String(fd.get("account")||"Efectivo");
     const id=Date.now();
     if(expenseModal.kind==="group"&&!categories.some(item=>item.toLocaleLowerCase()===name.toLocaleLowerCase())) { setNotice("Primero crea esta categoría en Configuración"); return; }
     if(expenseModal.kind==="group"&&expenseGroups.some(group=>group.name.toLocaleLowerCase()===name.toLocaleLowerCase())) { setNotice("Esta categoría ya tiene un detalle creado"); return; }
-    // Los gastos creados desde el plan se confirman al momento de pagarlos.
-    // Los registros antiguos se conservan como pronósticos sin modificar.
+    
     const requiresConfirmation=expenseModal.kind!=="group";
-    if(expenseModal.kind==="fixed") setFixedExpenses(items=>[{id,name,category,amount,account,requiresConfirmation,completed:false},...items]);
-    if(expenseModal.kind==="monthly") setMonthlyExpenses(items=>[{id,name,category,amount,account,period:activePeriod,requiresConfirmation,completed:false},...items]);
+    let trendMsg = "";
+
+    if(expenseModal.kind==="fixed") {
+      if (expenseModalWarehouseId && amount > 0) {
+        const res = recordWarehousePurchaseHistory(expenseModalWarehouseId, amount, activePeriod, { account });
+        if (res) trendMsg = ` (${res.trendMsg})`;
+      }
+      setFixedExpenses(items=>[{id,name,category,amount,account,requiresConfirmation,completed:false,warehouseItemId:expenseModalWarehouseId||undefined},...items]);
+    }
+    if(expenseModal.kind==="monthly") {
+      if (expenseModalWarehouseId && amount > 0) {
+        const res = recordWarehousePurchaseHistory(expenseModalWarehouseId, amount, activePeriod, { account });
+        if (res) trendMsg = ` (${res.trendMsg})`;
+      }
+      setMonthlyExpenses(items=>[{id,name,category,amount,account,period:activePeriod,requiresConfirmation,completed:false,warehouseItemId:expenseModalWarehouseId||undefined},...items]);
+    }
     if(expenseModal.kind==="group") {
       setExpenseGroups(groups=>[{id,name,budget:amount,items:[]},...groups]);
       setOpenGroups(groups=>[id,...groups]);
     }
     if(expenseModal.kind==="sub"&&expenseModal.groupId) {
-      const names=fd.getAll("name").map(value=>String(value).trim());const amounts=fd.getAll("amount").map(value=>Number(value));const rowCategories=fd.getAll("category").map(value=>String(value));
-      const entries=names.map((entry,index)=>({id:id+index,name:entry,category:rowCategories[index]||"Otros",amount:amounts[index],account,period:activePeriod,requiresConfirmation,savingDestination:rowCategories[index]==="Ahorro"?(subSavingDestinations[subRows[index]]??"general"):undefined})).filter(entry=>entry.name&&Number.isFinite(entry.amount)&&entry.amount>0);
+      const names=fd.getAll("name").map(value=>String(value).trim());
+      const amounts=fd.getAll("amount").map(value=>Number(value));
+      const rowCategories=fd.getAll("category").map(value=>String(value));
+      const entries=names.map((entry,index)=>{
+        const rowId = subRows[index];
+        const wId = subWarehouseIds[rowId];
+        if (wId && amounts[index] > 0) {
+          const res = recordWarehousePurchaseHistory(wId, amounts[index], activePeriod, { account });
+          if (res) trendMsg = ` (${res.trendMsg})`;
+        }
+        return {
+          id: id + index,
+          name: entry,
+          category: rowCategories[index] || "Otros",
+          amount: amounts[index],
+          account,
+          period: activePeriod,
+          requiresConfirmation,
+          warehouseItemId: wId || undefined,
+          savingDestination: rowCategories[index]==="Ahorro" ? (subSavingDestinations[rowId]??"general") : undefined
+        };
+      }).filter(entry=>entry.name&&Number.isFinite(entry.amount)&&entry.amount>0);
+
       const group=expenseGroups.find(item=>item.id===expenseModal.groupId);
       const used=group?.items.reduce((sum,item)=>sum+item.amount,0)??0;
       if(group&&used+entries.reduce((sum,item)=>sum+item.amount,0)>group.budget) { setNotice(`Excedes el monto definido por S/ ${(used+entries.reduce((sum,item)=>sum+item.amount,0)-group.budget).toLocaleString("es-PE",{minimumFractionDigits:2})}`); return; }
@@ -1007,19 +1069,32 @@ export default function Home() {
       if(generalContribution) setSavings(value=>value+generalContribution);
       for(const entry of entries.filter(entry=>entry.category==="Ahorro"&&typeof entry.savingDestination==="number")) setSavingsGoals(goals=>goals.map(goal=>goal.id===entry.savingDestination?{...goal,amount:Math.min(goal.target,goal.amount+entry.amount)}:goal));
     }
-    setExpenseModal(null);setSubRows([1]);setSubCategories({});setSubSavingDestinations({});setSubAmounts({});setSubNames({});
-    setNotice(expenseModal.kind==="group"?"Detalle de categoría creado correctamente":"Gasto registrado correctamente");
+
+    setExpenseModal(null);
+    setExpenseModalWarehouseId(null);
+    setExpenseModalTitle("");
+    setExpenseModalAmount("");
+    setExpenseModalCategory("");
+    setSubRows([1]);
+    setSubCategories({});
+    setSubSavingDestinations({});
+    setSubAmounts({});
+    setSubNames({});
+    setSubWarehouseIds({});
+    setNotice(expenseModal.kind==="group"?"Detalle de categoría creado correctamente":`Gasto registrado correctamente${trendMsg}`);
+    setTimeout(()=>setNotice(""), 3500);
   }
 
   function selectWarehouseForSubRow(rowId: number, warehouseId: number) {
     const item = warehouseItems.find(w => w.id === warehouseId);
     if (!item) return;
+    setSubWarehouseIds(prev => ({ ...prev, [rowId]: warehouseId }));
     setSubNames(prev => ({ ...prev, [rowId]: item.name }));
     setSubAmounts(prev => ({ ...prev, [rowId]: item.estimatedPrice.toString() }));
     if (categories.includes(item.category)) {
       setSubCategories(prev => ({ ...prev, [rowId]: item.category }));
     }
-    setNotice(`✓ "${item.name}" (S/ ${item.estimatedPrice.toFixed(2)}) cargado desde Almacén`);
+    setNotice(`✓ "${item.name}" (S/ ${item.estimatedPrice.toFixed(2)}) vinculado con Almacén`);
   }
 
   function duplicateFixedExpense(item:ExpenseEntry) {
@@ -1027,7 +1102,14 @@ export default function Home() {
     setNotice("Pago fijo duplicado; puedes editarlo antes de usarlo");
   }
 
-  function openSubExpenseForm(groupId:number) { setSubRows([Date.now()]);setSubNames({});setSubAmounts({});setSubCategories({});setExpenseModal({kind:"sub",groupId}); }
+  function openSubExpenseForm(groupId:number) {
+    setSubRows([Date.now()]);
+    setSubNames({});
+    setSubAmounts({});
+    setSubCategories({});
+    setSubWarehouseIds({});
+    setExpenseModal({kind:"sub",groupId});
+  }
 
   function removeDetailedExpense(section:"fixed"|"monthly",id:number, confirmed=false) {
     if(!confirmed) { setDeleteConfirmation({message:"Eliminarás este gasto planificado del período.",onConfirm:()=>removeDetailedExpense(section,id,true)}); return; }
@@ -1404,7 +1486,7 @@ export default function Home() {
         <button role="tab" aria-selected={expenseTab==="monthly"} className={expenseTab==="monthly"?"active":""} onClick={()=>setExpenseTab("monthly")}><CalendarDays size={17}/>Gastos mensuales</button>
         <button role="tab" aria-selected={expenseTab==="groups"} className={expenseTab==="groups"?"active":""} onClick={()=>setExpenseTab("groups")}><Layers3 size={17}/>Detalle por categoría</button>
       </div>
-      {expenseTab!=="groups"&&<article className="card module-card expense-list-card"><div className="card-title"><div><h2>{expenseTab==="fixed"?"Pagos que se repiten cada mes":`Gastos variables de ${monthNames[selectedMonth]}`}</h2><p>{expenseTab==="fixed"?"Alquiler, ahorro, pasajes y servicios recurrentes.":"Solo se muestran los consumos del período seleccionado."}</p></div></div><div className="expense-rows">{(expenseTab==="fixed"?fixedExpenses:monthlyForPeriod).map(item=><div className="expense-row" key={item.id}><div className={`expense-kind-icon ${item.category==="Ahorro"?"saving":""}`}>{categoryIcon(item.category,"expense")}</div><div><strong>{item.name}</strong><span>{item.category} · {item.account||"Efectivo"} · {item.requiresConfirmation?(item.completed?"Realizado":"Pendiente de pago"):"Pronóstico"}</span></div><strong className="expense-value">S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>{item.requiresConfirmation&&<button className={`completion-toggle ${item.completed?"done":""}`} onClick={()=>toggleDetailedCompletion(expenseTab,item.id)} title={item.completed?"Realizado: volver a pendiente":"Marcar como realizado"}>{item.completed?<Check size={15}/>:<Circle size={15}/>}</button>}{expenseTab==="fixed"&&<button className="add-subexpense" onClick={()=>duplicateFixedExpense(item)}>Duplicar</button>}<button className="add-subexpense" onClick={()=>setDetailedEdit({section:expenseTab,id:item.id})}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeDetailedExpense(expenseTab,item.id)}><Trash2 size={15}/></button></div>)}{(expenseTab==="fixed"?fixedExpenses:monthlyForPeriod).length===0&&<div className="empty-state"><ReceiptText/><strong>Aún no tienes gastos en este período</strong><span>Usa “Agregar gasto” para registrarlo en {monthNames[selectedMonth]}.</span></div>}</div></article>}
+      {expenseTab!=="groups"&&<article className="card module-card expense-list-card"><div className="card-title"><div><h2>{expenseTab==="fixed"?"Pagos que se repiten cada mes":`Gastos variables de ${monthNames[selectedMonth]}`}</h2><p>{expenseTab==="fixed"?"Alquiler, ahorro, pasajes y servicios recurrentes.":"Solo se muestran los consumos del período seleccionado."}</p></div></div><div className="expense-rows">{(expenseTab==="fixed"?fixedExpenses:monthlyForPeriod).map(item=><div className="expense-row" key={item.id}><div className={`expense-kind-icon ${item.category==="Ahorro"?"saving":""}`}>{categoryIcon(item.category,"expense")}</div><div><div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}><strong>{item.name}</strong>{item.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}</div><span>{item.category} · {item.account||"Efectivo"} · {item.requiresConfirmation?(item.completed?"Realizado":"Pendiente de pago"):"Pronóstico"}</span></div><strong className="expense-value">S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>{item.requiresConfirmation&&<button className={`completion-toggle ${item.completed?"done":""}`} onClick={()=>toggleDetailedCompletion(expenseTab,item.id)} title={item.completed?"Realizado: volver a pendiente":"Marcar como realizado"}>{item.completed?<Check size={15}/>:<Circle size={15}/>}</button>}{expenseTab==="fixed"&&<button className="add-subexpense" onClick={()=>duplicateFixedExpense(item)}>Duplicar</button>}<button className="add-subexpense" onClick={()=>setDetailedEdit({section:expenseTab,id:item.id})}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeDetailedExpense(expenseTab,item.id)}><Trash2 size={15}/></button></div>)}{(expenseTab==="fixed"?fixedExpenses:monthlyForPeriod).length===0&&<div className="empty-state"><ReceiptText/><strong>Aún no tienes gastos en este período</strong><span>Usa “Agregar gasto” para registrarlo en {monthNames[selectedMonth]}.</span></div>}</div></article>}
       {expenseTab==="groups"&&<section className="expense-groups">{expenseGroups.map(group=>{
         const groupPeriodItems = group.items.filter(item => (item.period ?? initialPeriod) === activePeriod);
         const total = groupPeriodItems.reduce((sum,item)=>sum+item.amount,0);
@@ -1456,12 +1538,15 @@ export default function Home() {
             {filteredItems.map(item=><div className="subexpense-row" key={item.id}>
               <span className="subexpense-dot"/>
               <div>
-                <strong>{item.name}</strong>
+                <div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}>
+                  <strong>{item.name}</strong>
+                  {item.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}
+                </div>
                 <span>{item.category} · {item.account || "Efectivo"} · {item.requiresConfirmation?(item.completed?"Realizado":"Pendiente"):"Pronóstico"}</span>
               </div>
               <strong>S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
               {item.requiresConfirmation&&<button className={`completion-toggle ${item.completed?"done":""}`} onClick={()=>toggleSubExpenseCompletion(group.id,item.id)} title={item.completed?"Realizado: volver a pendiente":"Marcar como realizado"}>{item.completed?<Check size={15}/>:<Circle size={15}/>}</button>}
-              <button className="add-subexpense" title="Guardar este producto en tu Almacén para futuras compras" onClick={()=>addToWarehouseFromExpense(item.name, item.category || group.name, item.amount, item.account)}><Package size={13}/> Almacén</button>
+              {!item.warehouseItemId&&<button className="add-subexpense" title="Guardar este producto en tu Almacén para futuras compras" onClick={()=>addToWarehouseFromExpense(item.name, item.category || group.name, item.amount, item.account)}><Package size={13}/> Almacén</button>}
               <button className="add-subexpense" onClick={()=>editSubExpense(group.id,item.id)}>Editar</button>
               <button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeSubExpense(group.id,item.id)}><Trash2 size={14}/></button>
             </div>)}
@@ -1908,7 +1993,7 @@ export default function Home() {
       </div>
     </main>
 
-    {showModal&&<div className="modal-backdrop" onMouseDown={closeMovementModal}><form className="modal" onSubmit={addTransaction} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nuevo movimiento</h2><p>Registra un ingreso o gasto en {monthNames[selectedMonth]} {selectedYear}.</p></div><button type="button" onClick={closeMovementModal}><X/></button></div><label>Tipo<select name="kind" value={movementKind} onChange={e=>setMovementKind(e.target.value as "income"|"expense")}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>{movementKind==="expense"&&<label>Tipo de gasto<select value={expenseType} onChange={e=>setExpenseType(e.target.value as "fixed"|"monthly"|"group")}><option value="fixed">Gasto fijo — se repite cada mes</option><option value="monthly">Gasto mensual — solo este mes</option><option value="group">Detalle por categoría</option></select></label>}{warehouseItems.length>0&&movementKind==="expense"&&<div className="warehouse-quick-pick"><span className="warehouse-quick-pick-label"><Package size={15}/> 📦 ¿Jalar producto habitual del Almacén?</span><select onChange={e=>{const val=Number(e.target.value);if(!val)return;const found=warehouseItems.find(item=>item.id===val);if(found){setMovementTitle(`${found.name} (${found.packageType} - ${found.quantityUnit})`);setMovementAmount(found.estimatedPrice>0?found.estimatedPrice.toString():"");if(categories.includes(found.category)){setMovementCategory(found.category);}setNotice(`✓ Datos cargados de "${found.name}"`);}}} defaultValue=""><option value="" disabled>Selecciona para autocompletar nombre, categoría y precio...</option>{warehouseItems.map(item=><option key={item.id} value={item.id}>{item.name} — {item.packageType} ({item.quantityUnit}) · S/ {item.estimatedPrice.toFixed(2)}</option>)}</select></div>}<label>Descripción<input name="title" required value={movementTitle} onChange={e=>setMovementTitle(e.target.value)} placeholder={movementKind==="income"?"Ej. Sueldo mensual":expenseType==="fixed"?"Ej. Alquiler":"Ej. Almuerzo"}/></label><div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={movementAmount} onChange={e=>setMovementAmount(e.target.value)} placeholder="0.00"/></label><label>Categoría<select name="category" value={movementKind==="income"?incomeCategories.includes(movementCategory)?movementCategory:incomeCategories[0]:movementCategory} onChange={e=>setMovementCategory(e.target.value)}>{(movementKind==="income"?incomeCategories:categories).map(category=><option key={category}>{category}</option>)}</select></label></div>{movementKind==="expense"&&movementCategory==="Ahorro"&&<label>Destino del ahorro<select name="savingDestination" value={String(savingDestination)} onChange={e=>setSavingDestination(e.target.value==="general"?"general":Number(e.target.value))}><option value="general">Ahorro general / indefinido</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}<label>Cuenta<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>{movementKind==="expense"&&movementCategory==="Ahorro"&&<p className="eyebrow">Este egreso se registrará también como aporte al destino que elegiste.</p>}{movementKind==="expense"&&expenseType==="group"&&movementCategory!=="Ahorro"&&<p className="eyebrow">Este movimiento se verá en el historial. Los subgastos se agregan desde Detalle por categoría.</p>}<div className="modal-actions"><button type="button" onClick={closeMovementModal}>Cancelar</button><button className="primary" type="submit">Guardar movimiento</button></div></form></div>}
+    {showModal&&<div className="modal-backdrop" onMouseDown={closeMovementModal}><form className="modal" onSubmit={addTransaction} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nuevo movimiento</h2><p>Registra un ingreso o gasto en {monthNames[selectedMonth]} {selectedYear}.</p></div><button type="button" onClick={closeMovementModal}><X/></button></div><label>Tipo<select name="kind" value={movementKind} onChange={e=>setMovementKind(e.target.value as "income"|"expense")}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>{movementKind==="expense"&&<label>Tipo de gasto<select value={expenseType} onChange={e=>setExpenseType(e.target.value as "fixed"|"monthly"|"group")}><option value="fixed">Gasto fijo — se repite cada mes</option><option value="monthly">Gasto mensual — solo este mes</option><option value="group">Detalle por categoría</option></select></label>}{warehouseItems.length>0&&movementKind==="expense"&&<div className="warehouse-quick-pick"><span className="warehouse-quick-pick-label"><Package size={15}/> 📦 ¿Jalar producto habitual del Almacén?</span><select onChange={e=>{const val=Number(e.target.value);if(!val)return;const found=warehouseItems.find(item=>item.id===val);if(found){setSelectedMovementWarehouseId(val);setMovementTitle(`${found.name} (${found.packageType})`);setMovementAmount(found.estimatedPrice>0?found.estimatedPrice.toString():"");if(categories.includes(found.category)){setMovementCategory(found.category);}setNotice(`✓ "${found.name}" (S/ ${found.estimatedPrice.toFixed(2)}) vinculado con Almacén`);}}} defaultValue=""><option value="" disabled>Selecciona para autocompletar nombre, categoría y precio...</option>{warehouseItems.map(item=><option key={item.id} value={item.id}>{item.name} — {item.packageType} ({item.quantityUnit}) · S/ {item.estimatedPrice.toFixed(2)}</option>)}</select></div>}<label>Descripción<input name="title" required value={movementTitle} onChange={e=>setMovementTitle(e.target.value)} placeholder={movementKind==="income"?"Ej. Sueldo mensual":expenseType==="fixed"?"Ej. Alquiler":"Ej. Almuerzo"}/></label><div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={movementAmount} onChange={e=>setMovementAmount(e.target.value)} placeholder="0.00"/></label><label>Categoría<select name="category" value={movementKind==="income"?incomeCategories.includes(movementCategory)?movementCategory:incomeCategories[0]:movementCategory} onChange={e=>setMovementCategory(e.target.value)}>{(movementKind==="income"?incomeCategories:categories).map(category=><option key={category}>{category}</option>)}</select></label></div>{movementKind==="expense"&&movementCategory==="Ahorro"&&<label>Destino del ahorro<select name="savingDestination" value={String(savingDestination)} onChange={e=>setSavingDestination(e.target.value==="general"?"general":Number(e.target.value))}><option value="general">Ahorro general / indefinido</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}<label>Cuenta<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>{movementKind==="expense"&&movementCategory==="Ahorro"&&<p className="eyebrow">Este egreso se registrará también como aporte al destino que elegiste.</p>}{movementKind==="expense"&&expenseType==="group"&&movementCategory!=="Ahorro"&&<p className="eyebrow">Este movimiento se verá en el historial. Los subgastos se agregan desde Detalle por categoría.</p>}<div className="modal-actions"><button type="button" onClick={closeMovementModal}>Cancelar</button><button className="primary" type="submit">Guardar movimiento</button></div></form></div>}
     {warehouseModal.open&&<div className="modal-backdrop" onMouseDown={()=>setWarehouseModal({open:false,item:null})}><form className="modal" onSubmit={saveWarehouseItem} onMouseDown={e=>e.stopPropagation()}>
       <div className="modal-title">
         <div>
@@ -2205,7 +2290,7 @@ export default function Home() {
         </div>
       </div>;
     })()}
-    {expenseModal&&<div className="modal-backdrop" onMouseDown={()=>setExpenseModal(null)}><form className="modal" onSubmit={addDetailedExpense} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{expenseModal.kind==="group"?"Activar detalle por categoría":expenseModal.kind==="sub"?"Agregar subgastos":expenseModal.kind==="fixed"?"Nuevo gasto fijo":"Nuevo gasto mensual"}</h2><p>{expenseModal.kind==="group"?"Escribe una categoría existente. Las categorías se administran únicamente en Configuración.":expenseModal.kind==="sub"?"Añade varias compras a esta categoría o jálalas directamente de tu almacén.":"Registra el concepto y su monto."}</p></div><button type="button" onClick={()=>setExpenseModal(null)}><X/></button></div>{expenseModal.kind==="sub"?<><div className="card-title"><div><h2>Detalle de subgastos</h2><p>{subRows.length} fila{subRows.length===1?"":"s"} lista{subRows.length===1?"":"s"} para registrar.</p></div><button type="button" className="add-subexpense" onClick={()=>setSubRows(rows=>[...rows,Date.now()+rows.length])}><Plus size={16}/>Agregar fila</button></div><label>Cuenta para estos subgastos<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>{subRows.map((row,index)=>{const category=subCategories[row]??categories.find(item=>item!=="Ahorro")??categories[0];const currentName=subNames[row]??"";const currentAmount=subAmounts[row]??"";return <div className="subexpense-form-row" key={row} style={{display:"flex",flexDirection:"column",gap:"8px",padding:"12px",background:"#f8fafc",borderRadius:"8px",border:"1px solid #e2e8f0",marginBottom:"12px"}}>{warehouseItems.length>0&&<div style={{display:"flex",alignItems:"center",gap:"8px"}}><span style={{fontSize:"11px",fontWeight:600,color:"var(--muted)",display:"flex",alignItems:"center",gap:"4px"}}><Package size={13}/> ¿Jalar de Almacén?</span><select style={{fontSize:"12px",padding:"4px 8px",flex:1,borderRadius:"6px",border:"1px solid #cbd5e1"}} defaultValue="" onChange={e=>{const val=Number(e.target.value);if(val) selectWarehouseForSubRow(row,val);}}><option value="" disabled>Selecciona producto para autocompletar...</option>{warehouseItems.map(wItem=><option key={wItem.id} value={wItem.id}>{wItem.name} ({wItem.packageType}) · S/ {wItem.estimatedPrice.toFixed(2)}</option>)}</select></div>}<div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr auto",gap:"8px",alignItems:"flex-end"}}><label style={{margin:0}}>Descripción<input name="name" required autoFocus={index===0} value={currentName} onChange={e=>setSubNames(prev=>({...prev,[row]:e.target.value}))} placeholder="Ej. Mandarina"/></label><label style={{margin:0}}>Categoría<select name="category" value={category} onChange={e=>setSubCategories(items=>({...items,[row]:e.target.value}))}>{categories.map(item=><option key={item}>{item}</option>)}</select></label><label style={{margin:0}}>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={currentAmount} onChange={e=>setSubAmounts(prev=>({...prev,[row]:e.target.value}))} placeholder="0.00"/></label>{subRows.length>1&&<button type="button" className="expense-delete" style={{marginBottom:"6px"}} onClick={()=>setSubRows(rows=>rows.filter(item=>item!==row))}><Trash2 size={15}/></button>}</div>{category==="Ahorro"&&<label style={{margin:0}}>Destino<select value={String(subSavingDestinations[row]??"general")} onChange={e=>setSubSavingDestinations(items=>({...items,[row]:e.target.value==="general"?"general":Number(e.target.value)}))}><option value="general">Ahorro general</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}</div>})}</>:<><label>{expenseModal.kind==="group"?"Categoría existente":"Descripción"}<input name="name" required autoFocus placeholder={expenseModal.kind==="group"?"Ej. Alimentación":"Ej. Alquiler"}/></label>{expenseModal.kind!=="group"&&<label>Categoría<select name="category">{categories.map(category=><option key={category}>{category}</option>)}</select></label>}<label>{expenseModal.kind==="group"?"Presupuesto mensual (S/)":"Monto (S/)"}<input name="amount" required type="number" min="0.01" step="0.01" placeholder="0.00"/></label>{expenseModal.kind!=="group"&&<label>Cuenta<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>}</>}<div className="modal-actions"><button type="button" onClick={()=>setExpenseModal(null)}>Cancelar</button><button className="primary" type="submit">{expenseModal.kind==="group"?"Activar detalle":expenseModal.kind==="sub"?`Guardar ${subRows.length} subgasto${subRows.length===1?"":"s"}`:"Guardar gasto"}</button></div></form></div>}
+    {expenseModal&&<div className="modal-backdrop" onMouseDown={()=>setExpenseModal(null)}><form className="modal" onSubmit={addDetailedExpense} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{expenseModal.kind==="group"?"Activar detalle por categoría":expenseModal.kind==="sub"?"Agregar subgastos":expenseModal.kind==="fixed"?"Nuevo gasto fijo":"Nuevo gasto mensual"}</h2><p>{expenseModal.kind==="group"?"Escribe una categoría existente. Las categorías se administran únicamente en Configuración.":expenseModal.kind==="sub"?"Añade varias compras a esta categoría o jálalas directamente de tu almacén.":"Registra el concepto y su monto."}</p></div><button type="button" onClick={()=>setExpenseModal(null)}><X/></button></div>{expenseModal.kind==="sub"?<><div className="card-title"><div><h2>Detalle de subgastos</h2><p>{subRows.length} fila{subRows.length===1?"":"s"} lista{subRows.length===1?"":"s"} para registrar.</p></div><button type="button" className="add-subexpense" onClick={()=>setSubRows(rows=>[...rows,Date.now()+rows.length])}><Plus size={16}/>Agregar fila</button></div><label>Cuenta para estos subgastos<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>{subRows.map((row,index)=>{const category=subCategories[row]??categories.find(item=>item!=="Ahorro")??categories[0];const currentName=subNames[row]??"";const currentAmount=subAmounts[row]??"";return <div className="subexpense-form-row" key={row} style={{display:"flex",flexDirection:"column",gap:"8px",padding:"12px",background:"#f8fafc",borderRadius:"8px",border:"1px solid #e2e8f0",marginBottom:"12px"}}>{warehouseItems.length>0&&<div style={{display:"flex",alignItems:"center",gap:"8px"}}><span style={{fontSize:"11px",fontWeight:600,color:"var(--muted)",display:"flex",alignItems:"center",gap:"4px"}}><Package size={13}/> ¿Jalar de Almacén?</span><select style={{fontSize:"12px",padding:"4px 8px",flex:1,borderRadius:"6px",border:"1px solid #cbd5e1"}} defaultValue="" onChange={e=>{const val=Number(e.target.value);if(val) selectWarehouseForSubRow(row,val);}}><option value="" disabled>Selecciona producto para autocompletar...</option>{warehouseItems.map(wItem=><option key={wItem.id} value={wItem.id}>{wItem.name} ({wItem.packageType}) · S/ {wItem.estimatedPrice.toFixed(2)}</option>)}</select></div>}<div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr auto",gap:"8px",alignItems:"flex-end"}}><label style={{margin:0}}>Descripción<input name="name" required autoFocus={index===0} value={currentName} onChange={e=>setSubNames(prev=>({...prev,[row]:e.target.value}))} placeholder="Ej. Mandarina"/></label><label style={{margin:0}}>Categoría<select name="category" value={category} onChange={e=>setSubCategories(items=>({...items,[row]:e.target.value}))}>{categories.map(item=><option key={item}>{item}</option>)}</select></label><label style={{margin:0}}>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={currentAmount} onChange={e=>setSubAmounts(prev=>({...prev,[row]:e.target.value}))} placeholder="0.00"/></label>{subRows.length>1&&<button type="button" className="expense-delete" style={{marginBottom:"6px"}} onClick={()=>setSubRows(rows=>rows.filter(item=>item!==row))}><Trash2 size={15}/></button>}</div>{category==="Ahorro"&&<label style={{margin:0}}>Destino<select value={String(subSavingDestinations[row]??"general")} onChange={e=>setSubSavingDestinations(items=>({...items,[row]:e.target.value==="general"?"general":Number(e.target.value)}))}><option value="general">Ahorro general</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}</div>})}</>:<>{expenseModal.kind!=="group"&&warehouseItems.length>0&&<div className="warehouse-quick-pick" style={{marginBottom:"10px"}}><span className="warehouse-quick-pick-label"><Package size={14}/> 📦 ¿Jalar producto habitual del Almacén?</span><select defaultValue="" onChange={e=>{const val=Number(e.target.value);if(!val)return;const found=warehouseItems.find(item=>item.id===val);if(found){setExpenseModalWarehouseId(val);setExpenseModalTitle(`${found.name} (${found.packageType})`);setExpenseModalAmount(found.estimatedPrice>0?found.estimatedPrice.toString():"");if(categories.includes(found.category)){setExpenseModalCategory(found.category);}setNotice(`✓ "${found.name}" (S/ ${found.estimatedPrice.toFixed(2)}) vinculado con Almacén`);}}}><option value="" disabled>Selecciona para autocompletar...</option>{warehouseItems.map(item=><option key={item.id} value={item.id}>{item.name} — {item.packageType} ({item.quantityUnit}) · S/ {item.estimatedPrice.toFixed(2)}</option>)}</select></div>}<label>{expenseModal.kind==="group"?"Categoría existente":"Descripción"}<input name="name" required autoFocus value={expenseModal.kind==="group"?undefined:(expenseModalTitle||undefined)} onChange={e=>setExpenseModalTitle(e.target.value)} placeholder={expenseModal.kind==="group"?"Ej. Alimentación":expenseModal.kind==="fixed"?"Ej. Alquiler":"Ej. Almuerzo"}/></label>{expenseModal.kind!=="group"&&<label>Categoría<select name="category" value={expenseModalCategory||undefined} onChange={e=>setExpenseModalCategory(e.target.value)}>{categories.map(category=><option key={category}>{category}</option>)}</select></label>}<label>{expenseModal.kind==="group"?"Presupuesto mensual (S/)":"Monto (S/)"}<input name="amount" required type="number" min="0.01" step="0.01" value={expenseModal.kind==="group"?undefined:(expenseModalAmount||undefined)} onChange={e=>setExpenseModalAmount(e.target.value)} placeholder="0.00"/></label>{expenseModal.kind!=="group"&&<label>Cuenta<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>}</>}<div className="modal-actions"><button type="button" onClick={()=>setExpenseModal(null)}>Cancelar</button><button className="primary" type="submit">{expenseModal.kind==="group"?"Activar detalle":expenseModal.kind==="sub"?`Guardar ${subRows.length} subgasto${subRows.length===1?"":"s"}`:"Guardar gasto"}</button></div></form></div>}
     {expenseEdit&&(()=>{const group=expenseGroups.find(item=>item.id===expenseEdit.groupId);const item=expenseEdit.kind==="sub"?group?.items.find(entry=>entry.id===expenseEdit.itemId):undefined;if(!group||expenseEdit.kind==="sub"&&!item)return null;const isGroup=expenseEdit.kind==="group";return <div className="modal-backdrop" onMouseDown={()=>setExpenseEdit(null)}><form className="modal" onSubmit={saveExpenseEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{isGroup?"Editar rubro":"Editar subgasto"}</h2><p>{isGroup?"Actualiza el nombre y el presupuesto. Los subgastos se conservan.":`Dentro del rubro ${group.name}.`}</p></div><button type="button" onClick={()=>setExpenseEdit(null)}><X/></button></div><label>{isGroup?"Nombre del rubro":"Descripción"}<input name="name" required autoFocus defaultValue={isGroup?group.name:item!.name}/></label>{!isGroup&&<label>Categoría<select name="category" defaultValue={item!.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label>}<label>{isGroup?"Presupuesto mensual (S/)":"Monto (S/)"}<input name="amount" required type="number" min="0" step="0.01" defaultValue={isGroup?group.budget:item!.amount}/></label><div className="module-callout"><ReceiptText/><div><strong>{isGroup?`${group.items.length} subgastos registrados`:`Periodo: ${monthNames[selectedMonth]} ${selectedYear}`}</strong><span>{isGroup?`Total usado actualmente: S/ ${group.items.reduce((sum,entry)=>sum+entry.amount,0).toLocaleString("es-PE",{minimumFractionDigits:2})}`:`Valor actual: S/ ${item!.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</span></div></div><div className="modal-actions"><button type="button" onClick={()=>setExpenseEdit(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
     {detailedEdit&&(()=>{const item=(detailedEdit.section==="fixed"?fixedExpenses:monthlyExpenses).find(entry=>entry.id===detailedEdit.id);if(!item)return null;return <div className="modal-backdrop" onMouseDown={()=>setDetailedEdit(null)}><form className="modal" onSubmit={saveDetailedEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Editar {detailedEdit.section==="fixed"?"gasto fijo":"gasto mensual"}</h2><p>Actualiza los datos sin perder el registro.</p></div><button type="button" onClick={()=>setDetailedEdit(null)}><X/></button></div><label>Descripción<input name="name" required autoFocus defaultValue={item.name}/></label><label>Categoría<select name="category" defaultValue={item.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><label>Monto (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={item.amount}/></label><div className="modal-actions"><button type="button" onClick={()=>setDetailedEdit(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
     {showSavingGoalModal&&<div className="modal-backdrop" onMouseDown={()=>setShowSavingGoalModal(false)}><form className="modal" onSubmit={createSavingsGoal} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nueva meta de ahorro</h2><p>Define para qué ahorrarás y cuánto necesitas reunir.</p></div><button type="button" onClick={()=>setShowSavingGoalModal(false)}><X/></button></div><label>Nombre de la meta<input name="name" required autoFocus placeholder="Ej. Laptop"/></label><div className="form-row"><label>Monto objetivo (S/)<input name="target" required type="number" min="0.01" step="0.01" placeholder="3000"/></label><label>Aporte inicial (S/)<input name="amount" type="number" min="0" step="0.01" defaultValue="0"/></label></div><div className="modal-actions"><button type="button" onClick={()=>setShowSavingGoalModal(false)}>Cancelar</button><button className="primary" type="submit">Crear meta</button></div></form></div>}
