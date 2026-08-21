@@ -1054,10 +1054,10 @@ export default function Home() {
   }
 
   function openCloseMonthModal() {
-    const income = actualTotals.income;
-    const expense = actualTotals.expense;
-    const balance = income - expense;
-    const savingsRate = income > 0 ? Math.max(0, Math.round((balance / income) * 100)) : 0;
+    const income = totals.income;
+    const expense = totals.expense;
+    const balance = netMonthBalance; // totals.income - totals.expense
+    const savingsRate = income > 0 && balance > 0 ? Math.round((balance / income) * 100) : 0;
     setCloseMonthModal({
       open: true,
       period: activePeriod,
@@ -2067,16 +2067,16 @@ export default function Home() {
 
         <div className="transition-kpi-grid">
           <div className="transition-kpi-card">
-            <span>Ingresos Reales</span>
-            <strong>S/ {closeMonthModal.income.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
+            <span>Ingresos Totales</span>
+            <strong style={{color:"var(--green)"}}>S/ {closeMonthModal.income.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
           </div>
           <div className="transition-kpi-card">
-            <span>Gastos Realizados</span>
-            <strong>S/ {closeMonthModal.expense.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
+            <span>Gastos Totales</span>
+            <strong style={{color:"var(--orange)"}}>S/ {closeMonthModal.expense.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
           </div>
           <div className={`transition-kpi-card ${closeMonthModal.balance >= 0 ? "positive" : "negative"}`}>
-            <span>Remanente / Saldo</span>
-            <strong>{closeMonthModal.balance < 0 ? `-S/ ${Math.abs(closeMonthModal.balance).toLocaleString("es-PE",{minimumFractionDigits:2})}` : `S/ ${closeMonthModal.balance.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</strong>
+            <span>Balance Neto</span>
+            <strong style={{color:closeMonthModal.balance >= 0 ? "var(--green)" : "#dc2626"}}>{closeMonthModal.balance < 0 ? `-S/ ${Math.abs(closeMonthModal.balance).toLocaleString("es-PE",{minimumFractionDigits:2})}` : `S/ ${closeMonthModal.balance.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</strong>
           </div>
           <div className="transition-kpi-card savings">
             <span>Tasa de Ahorro</span>
@@ -2131,11 +2131,11 @@ export default function Home() {
             </div>
           </div>
         ) : (
-          <div className="module-callout" style={{marginTop:"10px"}}>
+          <div className="module-callout" style={{marginTop:"12px", borderColor:"#fecaca", background:"#fef2f2"}}>
             <ReceiptText/>
             <div>
-              <strong>Cierre sin remanente excedente</strong>
-              <span>El mes quedará archivado con sus transacciones e histórico en modo consulta.</span>
+              <strong style={{color:"#dc2626"}}>Mes con balance en déficit (-S/ {Math.abs(closeMonthModal.balance).toLocaleString("es-PE",{minimumFractionDigits:2})})</strong>
+              <span style={{color:"#7f1d1d"}}>Tus gastos totales del mes superaron los ingresos registrados. No hay remanente excedente para transferir a ahorro. Al cerrar, el período quedará archivado como histórico contable.</span>
             </div>
           </div>
         )}
