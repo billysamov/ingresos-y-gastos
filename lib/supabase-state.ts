@@ -1,12 +1,17 @@
 type StoredState = Record<string, unknown>;
 type JsonRow = Record<string, unknown>;
 
-const metaEnv = (typeof import.meta !== "undefined" ? (import.meta as unknown as { env?: Record<string, string> }).env : undefined) ?? {};
-const procEnv = (typeof process !== "undefined" ? (process.env as Record<string, string | undefined>) : undefined) ?? {};
-const nextPublicSupabaseUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_SUPABASE_URL : undefined;
-const nextPublicSupabaseKey = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY : undefined;
-const supabaseUrl = (metaEnv.VITE_SUPABASE_URL || metaEnv.NEXT_PUBLIC_SUPABASE_URL || nextPublicSupabaseUrl || procEnv.VITE_SUPABASE_URL)?.replace(/\/$/, "");
-const publishableKey = metaEnv.VITE_SUPABASE_PUBLISHABLE_KEY || metaEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || nextPublicSupabaseKey || procEnv.VITE_SUPABASE_PUBLISHABLE_KEY;
+const supabaseUrl = (
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  "https://xyqcdyjnsecfzarsrtib.supabase.co"
+).replace(/\/$/, "");
+
+const publishableKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  "sb_publishable_1pV4PIj0DNktv4KdVzA5nQ_rvzbn7Lm";
+
 const profileId = "00000000-0000-4000-8000-000000000001";
 const initialPeriod = "2026-08";
 const remoteIds = new Map<string, string>();
