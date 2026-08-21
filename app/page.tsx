@@ -1031,7 +1031,26 @@ export default function Home() {
 
   function reopenMonth(period: string) {
     setClosedPeriods(prev => prev.filter(p => p !== period));
-    setNotice(`🔓 Período ${period} reabierto para edición`);
+    setSelectedYear(2026);
+    setSelectedMonth(7);
+    setMonthAccess({ year: 2026, month: 7 });
+    setTransactions(prev => prev.filter(t => (t.period ?? initialPeriod) !== "2026-09"));
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("finanza_closed_periods");
+    }
+    setNotice(`🔓 Período ${period} reabierto como mes activo. ¡Puedes volver a cerrarlo cuando gustes!`);
+  }
+
+  function resetToAugust() {
+    setClosedPeriods([]);
+    setSelectedYear(2026);
+    setSelectedMonth(7);
+    setMonthAccess({ year: 2026, month: 7 });
+    setTransactions(prev => prev.filter(t => (t.period ?? initialPeriod) !== "2026-09"));
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("finanza_closed_periods");
+    }
+    setNotice("🔄 Período restablecido a Agosto 2026 (abierto y listo para probar el cierre de nuevo).");
   }
 
   function openCloseMonthModal() {
@@ -1554,6 +1573,7 @@ export default function Home() {
       <article className="card module-card profile-settings"><form onSubmit={saveProfile}><div className="card-title"><div><h2>Datos personales y sueldo base</h2><p>Define tu sueldo base para conectar automáticamente tus gastos del mes.</p></div></div><div className="form-row"><label>Nombre visible<input name="fullName" required value={profile.fullName} onChange={e=>setProfile(value=>({...value,fullName:e.target.value}))}/></label><label>Moneda principal<select name="currency" value={profile.currency} onChange={e=>setProfile(value=>({...value,currency:e.target.value}))}><option value="PEN">Soles peruanos (PEN)</option><option value="USD">Dólares (USD)</option><option value="EUR">Euros (EUR)</option></select></label></div><div className="form-row" style={{marginTop:"12px"}}><label>Sueldo mensual base (S/)<input name="monthlySalary" type="number" min="0" step="50" placeholder="Ej. 3500" value={profile.monthlySalary ?? ""} onChange={e=>setProfile(value=>({...value,monthlySalary:Number(e.target.value)}))}/></label><label style={{display:"flex",alignItems:"center",gap:"10px",marginTop:"24px",cursor:"pointer"}}><input type="checkbox" name="autoRegisterSalary" checked={profile.autoRegisterSalary ?? false} onChange={e=>setProfile(value=>({...value,autoRegisterSalary:e.target.checked}))} style={{width:"auto"}}/>Registrar sueldo automáticamente al cerrar mes</label></div><div className="modal-actions"><button className="primary" type="submit">Guardar perfil</button></div></form></article>
       <article className="card module-card profile-settings"><div className="card-title"><div><h2>Categorías personales</h2><p>Se crean y administran aquí; se usan para clasificar todos tus gastos.</p></div></div><form onSubmit={addCategory} className="form-row"><label>Nueva categoría<input value={categoryDraft} onChange={e=>setCategoryDraft(e.target.value)} placeholder="Ej. Mascotas"/></label><div className="modal-actions"><button className="primary" type="submit">Agregar categoría</button></div></form><div className="report-list">{categories.map(category=><div key={category}><span className="report-name">{category}</span><button className="expense-delete" type="button" onClick={()=>setCategories(items=>items.filter(item=>item!==category))} aria-label={`Eliminar ${category}`}><Trash2 size={14}/></button></div>)}</div></article>
       <article className="card module-card profile-settings"><div className="card-title"><div><h2>Rubros de ingreso</h2><p>Estos nombres aparecen solamente cuando registras un ingreso.</p></div></div><form onSubmit={addIncomeCategory} className="form-row"><label>Nuevo rubro de ingreso<input value={incomeCategoryDraft} onChange={e=>setIncomeCategoryDraft(e.target.value)} placeholder="Ej. Comisión"/></label><div className="modal-actions"><button className="primary" type="submit">Agregar rubro</button></div></form><div className="report-list">{incomeCategories.map(category=><div key={category}><span className="report-name">{category}</span><button className="expense-delete" type="button" onClick={()=>setIncomeCategories(items=>items.filter(item=>item!==category))} aria-label={`Eliminar ${category}`}><Trash2 size={14}/></button></div>)}</div></article>
+      <article className="card module-card profile-settings" style={{borderLeft:"4px solid var(--blue)"}}><div className="card-title"><div><h2>Control de Períodos y Cierres</h2><p>Administra los meses cerrados o restablece a Agosto 2026 para repetir pruebas del asistente.</p></div></div><div style={{display:"flex",gap:"12px",alignItems:"center",flexWrap:"wrap",marginTop:"12px"}}><button className="primary" type="button" onClick={resetToAugust}>🔄 Restablecer a Agosto 2026 (Reabrir mes y reiniciar prueba)</button><span style={{fontSize:"12px",color:"var(--muted)"}}>Meses cerrados actualmente: {closedPeriods.length > 0 ? closedPeriods.join(", ") : "Ninguno"}</span></div></article>
     </>;
     return <>
       <ModuleHeading eyebrow="CUENTAS VINCULADAS" title="Cuentas" text="Visualiza los saldos de tus bancos y billeteras digitales." action={<button className="primary" onClick={()=>setNotice("Modo de prueba: integración con APIs bancarias pendiente")}><Plus size={18}/>Conectar cuenta</button>}/>
@@ -1624,7 +1644,11 @@ export default function Home() {
             </div>}
           </div>
 
-          {isPeriodClosed(activePeriod) ? (
+          {selectedMonth > 7 ? (
+            <button className="outline" type="button" title="Volver a abrir Agosto para repetir la prueba de cierre y transición" onClick={resetToAugust}>
+              <Unlock size={14}/> Volver a Agosto
+            </button>
+          ) : isPeriodClosed(activePeriod) ? (
             <button className="outline" type="button" onClick={()=>reopenMonth(activePeriod)}>
               <Unlock size={14}/> Reabrir mes
             </button>
