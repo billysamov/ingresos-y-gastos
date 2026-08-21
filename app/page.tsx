@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car, Check, ChevronDown, ChevronRight, Circle, CreditCard, Home as HomeIcon, Layers3, LayoutDashboard, Landmark, Menu, MoreHorizontal, Package, Pencil, PiggyBank, Plus, ReceiptText, Search, Settings, ShoppingBag, Smartphone, Target, Trash2, TrendingUp, Utensils, WalletCards, X, Zap } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car, Check, ChevronDown, ChevronRight, Circle, CreditCard, History, Home as HomeIcon, Layers3, LayoutDashboard, Landmark, Menu, MoreHorizontal, Package, Pencil, PiggyBank, Plus, ReceiptText, Scale, Search, Settings, ShoppingBag, Smartphone, Target, Trash2, TrendingDown, TrendingUp, Utensils, WalletCards, X, Zap } from "lucide-react";
 import { deleteRelationalRecord, isSupabaseConfigured, loadRelationalFinanceState, saveRelationalFinanceState } from "../lib/supabase-state";
 
 type ExpenseSource = "fixed"|"monthly"|"category";
@@ -15,7 +15,35 @@ type Budget = { id:number; name:string; limit:number; color:string };
 type MonthAccess = { year:number; month:number };
 type SavingsGoal = { id:number; dbId?:string; dbUpdatedAt?:string; name:string; target:number; amount:number };
 type DeleteConfirmation = { message:string; onConfirm:()=>void };
-type WarehouseItem = { id:number; dbId?:string; name:string; category:string; packageType:string; quantityUnit:string; estimatedPrice:number; store?:string; notes?:string; lastPurchasedPeriod?:string };
+
+type PriceRecord = {
+  id: string;
+  period: string;
+  date: string;
+  packageType: string;
+  packageFactor: number;
+  baseUnit: string;
+  totalPrice: number;
+  unitPrice: number;
+  store?: string;
+  notes?: string;
+};
+
+type WarehouseItem = {
+  id: number;
+  dbId?: string;
+  name: string;
+  category: string;
+  baseUnit: "kg" | "g" | "L" | "ml" | "unidad" | "lata" | "pañal" | "rollo" | "paquete";
+  packageType: string;
+  quantityUnit: string;
+  packageFactor: number;
+  estimatedPrice: number;
+  store?: string;
+  notes?: string;
+  lastPurchasedPeriod?: string;
+  priceHistory: PriceRecord[];
+};
 
 const seed: Tx[] = [];
 const fixedSeed: ExpenseEntry[] = [];
@@ -26,17 +54,218 @@ const demoFixedExpenseIds = new Set([101,102,103,104]);
 const demoMonthlyExpenseIds = new Set([201,202,203]);
 const demoGroupIds = new Set([301,302]);
 const initialPeriod = "2026-08";
-const defaultCategories = ["Hogar","Transporte","Alimentación","Servicios","Suscripciones","Frutas","Abarrotes","Otros"];
+const defaultCategories = ["Hogar","Transporte","Alimentación","Servicios","Suscripciones","Frutas","Abarrotes","Verduras","Otros"];
 const defaultIncomeCategories = ["Sueldo","Honorarios","Ventas","Freelance","Transferencia recibida","Reembolso","Otros ingresos"];
 
 const defaultWarehouseItems: WarehouseItem[] = [
-  { id: 1001, name: "Arroz Extra Costeño", category: "Abarrotes", packageType: "Saco", quantityUnit: "50 kg", estimatedPrice: 165.00, store: "Mercado Mayorista", notes: "Grano largo superior, rinde aprox. 2 meses.", lastPurchasedPeriod: "2026-08" },
-  { id: 1002, name: "Aceite Vegetal Primor", category: "Abarrotes", packageType: "Caja x 12", quantityUnit: "12 L (1L c/u)", estimatedPrice: 98.00, store: "Makro", notes: "Comprar en caja para mejor precio por litro.", lastPurchasedPeriod: "2026-08" },
-  { id: 1003, name: "Azúcar Rubia Cartavio", category: "Abarrotes", packageType: "Saco", quantityUnit: "50 kg", estimatedPrice: 145.00, store: "Mercado Mayorista", notes: "Saco para consumo doméstico.", lastPurchasedPeriod: "2026-07" },
-  { id: 1004, name: "Detergente Ariel en polvo", category: "Hogar", packageType: "Bolsa grande", quantityUnit: "15 kg", estimatedPrice: 89.50, store: "Mercado Mayorista", notes: "Para lavadora automática, rinde 3 meses.", lastPurchasedPeriod: "2026-08" },
-  { id: 1005, name: "Papel Higiénico Suave Gold", category: "Hogar", packageType: "Plancha x 40", quantityUnit: "40 rollos", estimatedPrice: 52.00, store: "Makro", notes: "Doble hoja, rinde mes y medio.", lastPurchasedPeriod: "2026-08" },
-  { id: 1006, name: "Leche Gloria Azul Entera", category: "Alimentación", packageType: "Plancha x 24", quantityUnit: "24 latas (400g)", estimatedPrice: 94.00, store: "Makro / Distribuidora", notes: "Pack familiar para desayuno.", lastPurchasedPeriod: "2026-08" },
+  {
+    id: 1001,
+    name: "Arroz Extra Costeño",
+    category: "Abarrotes",
+    baseUnit: "kg",
+    packageType: "Saco 50 kg",
+    quantityUnit: "50 kg",
+    packageFactor: 50,
+    estimatedPrice: 165.00,
+    store: "Mercado Mayorista",
+    notes: "Grano largo superior, rinde aprox. 2 meses.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-1", period: "2026-08", date: "2026-08-20", packageType: "Saco 50 kg", packageFactor: 50, baseUnit: "kg", totalPrice: 165.00, unitPrice: 3.30, store: "Mercado Mayorista" },
+      { id: "pr-2", period: "2026-08", date: "2026-08-02", packageType: "Bolsa 5 kg", packageFactor: 5, baseUnit: "kg", totalPrice: 21.00, unitPrice: 4.20, store: "Bodega" },
+      { id: "pr-3", period: "2026-07", date: "2026-07-15", packageType: "Saco 50 kg", packageFactor: 50, baseUnit: "kg", totalPrice: 160.00, unitPrice: 3.20, store: "Mercado Mayorista" }
+    ]
+  },
+  {
+    id: 1002,
+    name: "Aceite Vegetal Primor",
+    category: "Abarrotes",
+    baseUnit: "L",
+    packageType: "Caja x 12",
+    quantityUnit: "12 L (1L c/u)",
+    packageFactor: 12,
+    estimatedPrice: 98.00,
+    store: "Makro",
+    notes: "Comprar en caja para mejor precio por litro.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-4", period: "2026-08", date: "2026-08-10", packageType: "Caja x 12 (1L)", packageFactor: 12, baseUnit: "L", totalPrice: 98.00, unitPrice: 8.17, store: "Makro" },
+      { id: "pr-5", period: "2026-07", date: "2026-07-08", packageType: "Caja x 12 (1L)", packageFactor: 12, baseUnit: "L", totalPrice: 102.00, unitPrice: 8.50, store: "Makro" }
+    ]
+  },
+  {
+    id: 1003,
+    name: "Cebolla Roja",
+    category: "Verduras",
+    baseUnit: "kg",
+    packageType: "Kilo suelto",
+    quantityUnit: "1 kg",
+    packageFactor: 1,
+    estimatedPrice: 2.50,
+    store: "Mercado",
+    notes: "Para aderezos y ensaladas.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-6", period: "2026-08", date: "2026-08-02", packageType: "1 kg", packageFactor: 1, baseUnit: "kg", totalPrice: 2.50, unitPrice: 2.50, store: "Mercado" },
+      { id: "pr-7", period: "2026-07", date: "2026-07-22", packageType: "1 kg", packageFactor: 1, baseUnit: "kg", totalPrice: 2.80, unitPrice: 2.80, store: "Mercado" }
+    ]
+  },
+  {
+    id: 1004,
+    name: "Huevos Frescos",
+    category: "Abarrotes",
+    baseUnit: "unidad",
+    packageType: "Jaba x 30",
+    quantityUnit: "30 huevos",
+    packageFactor: 30,
+    estimatedPrice: 14.50,
+    store: "Mercado",
+    notes: "Proteína para desayunos y comidas.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-8", period: "2026-08", date: "2026-08-02", packageType: "2 Jabas (60 u.)", packageFactor: 60, baseUnit: "unidad", totalPrice: 29.00, unitPrice: 0.48, store: "Mercado" },
+      { id: "pr-9", period: "2026-07", date: "2026-07-25", packageType: "1 Jaba (30 u.)", packageFactor: 30, baseUnit: "unidad", totalPrice: 15.00, unitPrice: 0.50, store: "Mercado" }
+    ]
+  },
+  {
+    id: 1005,
+    name: "Pollo Fresco (Pechuga)",
+    category: "Alimentación",
+    baseUnit: "kg",
+    packageType: "2 Pechugas",
+    quantityUnit: "1.5 kg aprox.",
+    packageFactor: 1.5,
+    estimatedPrice: 15.50,
+    store: "Mercado",
+    notes: "Proteína fresca para almuerzos.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-10", period: "2026-08", date: "2026-08-02", packageType: "2 Pechugas (1.5 kg)", packageFactor: 1.5, baseUnit: "kg", totalPrice: 15.50, unitPrice: 10.33, store: "Mercado" }
+    ]
+  },
+  {
+    id: 1006,
+    name: "Pañales Babysec",
+    category: "Hogar",
+    baseUnit: "pañal",
+    packageType: "Paquete x 100",
+    quantityUnit: "100 unidades",
+    packageFactor: 100,
+    estimatedPrice: 70.00,
+    store: "Distribuidora",
+    notes: "Paquete grande para rinde mensual.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-11", period: "2026-08", date: "2026-08-02", packageType: "Paquete x 100", packageFactor: 100, baseUnit: "pañal", totalPrice: 70.00, unitPrice: 0.70, store: "Distribuidora" },
+      { id: "pr-12", period: "2026-07", date: "2026-07-12", packageType: "Paquete x 100", packageFactor: 100, baseUnit: "pañal", totalPrice: 74.00, unitPrice: 0.74, store: "Distribuidora" }
+    ]
+  },
+  {
+    id: 1007,
+    name: "Detergente Ariel en polvo",
+    category: "Hogar",
+    baseUnit: "kg",
+    packageType: "Bolsa grande 15 kg",
+    quantityUnit: "15 kg",
+    packageFactor: 15,
+    estimatedPrice: 89.50,
+    store: "Mercado Mayorista",
+    notes: "Para lavadora automática, rinde 3 meses.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-13", period: "2026-08", date: "2026-08-02", packageType: "Bolsa 4 kg", packageFactor: 4, baseUnit: "kg", totalPrice: 20.00, unitPrice: 5.00, store: "Bodega" },
+      { id: "pr-14", period: "2026-07", date: "2026-07-05", packageType: "Bolsa 15 kg", packageFactor: 15, baseUnit: "kg", totalPrice: 89.50, unitPrice: 5.97, store: "Mercado Mayorista" }
+    ]
+  },
+  {
+    id: 1008,
+    name: "Atún Primor en lata",
+    category: "Abarrotes",
+    baseUnit: "lata",
+    packageType: "Pack x 6",
+    quantityUnit: "6 latas (170g)",
+    packageFactor: 6,
+    estimatedPrice: 32.50,
+    store: "Metro",
+    notes: "Pack familiar de conservas de atún.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-15", period: "2026-08", date: "2026-08-20", packageType: "Pack x 6", packageFactor: 6, baseUnit: "lata", totalPrice: 32.50, unitPrice: 5.42, store: "Metro" },
+      { id: "pr-16", period: "2026-08", date: "2026-08-02", packageType: "5 Latas sueltas", packageFactor: 5, baseUnit: "lata", totalPrice: 25.00, unitPrice: 5.00, store: "Bodega" }
+    ]
+  },
+  {
+    id: 1009,
+    name: "Leche Gloria Azul Entera",
+    category: "Alimentación",
+    baseUnit: "lata",
+    packageType: "Plancha x 24",
+    quantityUnit: "24 latas (400g)",
+    packageFactor: 24,
+    estimatedPrice: 94.00,
+    store: "Makro / Distribuidora",
+    notes: "Pack familiar para desayuno.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-17", period: "2026-08", date: "2026-08-02", packageType: "3 Cajas de 1L", packageFactor: 3, baseUnit: "lata", totalPrice: 16.50, unitPrice: 5.50, store: "Bodega" },
+      { id: "pr-18", period: "2026-07", date: "2026-07-10", packageType: "Plancha x 24", packageFactor: 24, baseUnit: "lata", totalPrice: 94.00, unitPrice: 3.92, store: "Makro" }
+    ]
+  },
+  {
+    id: 1010,
+    name: "Azúcar Rubia Cartavio",
+    category: "Abarrotes",
+    baseUnit: "kg",
+    packageType: "Saco 50 kg",
+    quantityUnit: "50 kg",
+    packageFactor: 50,
+    estimatedPrice: 145.00,
+    store: "Mercado Mayorista",
+    notes: "Saco para consumo doméstico.",
+    lastPurchasedPeriod: "2026-07",
+    priceHistory: [
+      { id: "pr-19", period: "2026-07", date: "2026-07-01", packageType: "Saco 50 kg", packageFactor: 50, baseUnit: "kg", totalPrice: 145.00, unitPrice: 2.90, store: "Mercado Mayorista" }
+    ]
+  },
+  {
+    id: 1011,
+    name: "Papel Higiénico Suave Gold",
+    category: "Hogar",
+    baseUnit: "rollo",
+    packageType: "Plancha x 40",
+    quantityUnit: "40 rollos",
+    packageFactor: 40,
+    estimatedPrice: 52.00,
+    store: "Makro",
+    notes: "Doble hoja, rinde mes y medio.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-20", period: "2026-08", date: "2026-08-01", packageType: "Plancha x 40", packageFactor: 40, baseUnit: "rollo", totalPrice: 52.00, unitPrice: 1.30, store: "Makro" }
+    ]
+  }
 ];
+
+function getWarehouseTrend(item: WarehouseItem) {
+  const history = item.priceHistory || [];
+  if (history.length < 2) {
+    const currentUnit = item.packageFactor > 0 ? item.estimatedPrice / item.packageFactor : item.estimatedPrice;
+    return { trend: "equal" as const, text: `S/ ${currentUnit.toFixed(2)} / ${item.baseUnit}`, diffText: "Precio base", latestUnit: currentUnit, prevUnit: currentUnit, diff: 0, percent: 0 };
+  }
+  const latest = history[0];
+  const previous = history[1];
+  const latestUnit = latest.unitPrice || (latest.packageFactor > 0 ? latest.totalPrice / latest.packageFactor : latest.totalPrice);
+  const prevUnit = previous.unitPrice || (previous.packageFactor > 0 ? previous.totalPrice / previous.packageFactor : previous.totalPrice);
+  const diff = latestUnit - prevUnit;
+  const percent = prevUnit > 0 ? (diff / prevUnit) * 100 : 0;
+
+  if (Math.abs(diff) < 0.01) {
+    return { trend: "equal" as const, text: `S/ ${latestUnit.toFixed(2)} / ${item.baseUnit}`, diffText: "= Mismo precio", latestUnit, prevUnit, diff: 0, percent: 0 };
+  }
+  if (diff < 0) {
+    return { trend: "down" as const, text: `S/ ${latestUnit.toFixed(2)} / ${item.baseUnit}`, diffText: `🔻 -S/ ${Math.abs(diff).toFixed(2)} / ${item.baseUnit} (${Math.abs(percent).toFixed(1)}% ahorro)`, latestUnit, prevUnit, percent: Math.abs(percent), diff: Math.abs(diff) };
+  }
+  return { trend: "up" as const, text: `S/ ${latestUnit.toFixed(2)} / ${item.baseUnit}`, diffText: `🔺 +S/ ${diff.toFixed(2)} / ${item.baseUnit} (+${percent.toFixed(1)}%)`, latestUnit, prevUnit, percent, diff };
+}
 
 function legacyTransactionId(item: Partial<Tx>, index:number) {
   const fingerprint=[item.title,item.category,item.account,item.amount,item.period,index].join("|");
@@ -110,6 +339,31 @@ export default function Home() {
   const [incomeCategoryDraft, setIncomeCategoryDraft] = useState("");
   const [warehouseItems, setWarehouseItems] = useState<WarehouseItem[]>(defaultWarehouseItems);
   const [warehouseModal, setWarehouseModal] = useState<{ open: boolean; item?: WarehouseItem | null }>({ open: false, item: null });
+  const [warehouseBuyModal, setWarehouseBuyModal] = useState<{
+    open: boolean;
+    item: WarehouseItem | null;
+    packageType: string;
+    packageFactor: number;
+    quantity: number;
+    totalPrice: number;
+    destination: "movement" | number;
+    account: string;
+    store: string;
+    notes: string;
+  }>({
+    open: false,
+    item: null,
+    packageType: "",
+    packageFactor: 1,
+    quantity: 1,
+    totalPrice: 0,
+    destination: "movement",
+    account: "Efectivo",
+    store: "",
+    notes: ""
+  });
+  const [priceHistoryModal, setPriceHistoryModal] = useState<{ open: boolean; item: WarehouseItem | null }>({ open: false, item: null });
+  const [groupNatureFilter, setGroupNatureFilter] = useState<Record<number, string>>({});
   const [warehouseSearch, setWarehouseSearch] = useState("");
   const [warehouseCategoryFilter, setWarehouseCategoryFilter] = useState("Todas");
   const [movementTitle, setMovementTitle] = useState("");
@@ -263,14 +517,98 @@ export default function Home() {
     setMovementAmount("");
   }
 
-  function buyWarehouseItem(item: WarehouseItem) {
-    setMovementKind("expense");
-    setMovementTitle(`${item.name} (${item.packageType} - ${item.quantityUnit})`);
-    setMovementAmount(item.estimatedPrice > 0 ? item.estimatedPrice.toString() : "");
-    if (categories.includes(item.category)) {
-      setMovementCategory(item.category);
+  function openBuyWarehouseModal(item: WarehouseItem) {
+    const matchingGroup = expenseGroups.find(g => g.name.toLowerCase() === item.category.toLowerCase() || g.name.toLowerCase().includes("mercado") || g.name.toLowerCase().includes("abarrotes"));
+    setWarehouseBuyModal({
+      open: true,
+      item,
+      packageType: item.packageType,
+      packageFactor: item.packageFactor || 1,
+      quantity: 1,
+      totalPrice: item.estimatedPrice,
+      destination: matchingGroup ? matchingGroup.id : "movement",
+      account: "Efectivo",
+      store: item.store || "",
+      notes: ""
+    });
+  }
+
+  function confirmWarehouseBuy(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!warehouseBuyModal.item) return;
+    const item = warehouseBuyModal.item;
+    const { packageType, packageFactor, quantity, totalPrice, destination, account, store, notes } = warehouseBuyModal;
+    
+    const effectiveFactor = (packageFactor > 0 ? packageFactor : 1) * (quantity > 0 ? quantity : 1);
+    const unitPrice = totalPrice / effectiveFactor;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const title = `${item.name} (${packageType}${quantity > 1 ? ` x ${quantity}` : ""})`;
+    const id = Date.now();
+
+    // 1. Check price trend vs previous purchase
+    const lastRecord = item.priceHistory && item.priceHistory.length > 0 ? item.priceHistory[0] : null;
+    const prevUnit = lastRecord ? (lastRecord.unitPrice || lastRecord.totalPrice / (lastRecord.packageFactor || 1)) : (item.estimatedPrice / (item.packageFactor || 1));
+    const diff = unitPrice - prevUnit;
+    const percent = prevUnit > 0 ? Math.abs((diff / prevUnit) * 100).toFixed(1) : "0";
+
+    let trendMsg = "";
+    if (Math.abs(diff) < 0.01) {
+      trendMsg = `Mismo precio (S/ ${unitPrice.toFixed(2)}/${item.baseUnit})`;
+    } else if (diff < 0) {
+      trendMsg = `🔻 Ahorro de S/ ${Math.abs(diff).toFixed(2)}/${item.baseUnit} (-${percent}%)`;
+    } else {
+      trendMsg = `🔺 Subió +S/ ${diff.toFixed(2)}/${item.baseUnit} (+${percent}%)`;
     }
-    setShowModal(true);
+
+    // 2. Add as transaction or sub-expense
+    if (typeof destination === "number") {
+      setExpenseGroups(groups => groups.map(g => g.id === destination ? {
+        ...g,
+        items: [{ id, name: title, category: item.category, amount: totalPrice, period: activePeriod, account, completed: true, requiresConfirmation: true }, ...g.items]
+      } : g));
+    } else {
+      setTransactions(prev => [{
+        id,
+        title,
+        category: item.category,
+        account,
+        date: "Ahora",
+        amount: totalPrice,
+        kind: "expense",
+        period: activePeriod,
+        expenseSource: "monthly",
+        completed: true,
+        requiresConfirmation: false
+      }, ...prev]);
+    }
+
+    // 3. Log new price record in warehouse item
+    const newPriceRecord: PriceRecord = {
+      id: `pr-${Date.now()}`,
+      period: activePeriod,
+      date: dateStr,
+      packageType: `${packageType}${quantity > 1 ? ` x ${quantity}` : ""}`,
+      packageFactor: effectiveFactor,
+      baseUnit: item.baseUnit,
+      totalPrice,
+      unitPrice: Number(unitPrice.toFixed(2)),
+      store: store || item.store,
+      notes: notes || undefined
+    };
+
+    setWarehouseItems(items => items.map(w => w.id === item.id ? {
+      ...w,
+      packageType,
+      packageFactor: packageFactor > 0 ? packageFactor : w.packageFactor,
+      estimatedPrice: totalPrice,
+      store: store || w.store,
+      lastPurchasedPeriod: activePeriod,
+      priceHistory: [newPriceRecord, ...(w.priceHistory || [])]
+    } : w));
+
+    setWarehouseBuyModal({ open: false, item: null, packageType: "", packageFactor: 1, quantity: 1, totalPrice: 0, destination: "movement", account: "Efectivo", store: "", notes: "" });
+    setNotice(`✓ Compra registrada de "${item.name}" — ${trendMsg}`);
+    setTimeout(() => setNotice(""), 3500);
   }
 
   function saveWarehouseItem(e: React.FormEvent<HTMLFormElement>) {
@@ -278,8 +616,10 @@ export default function Home() {
     const fd = new FormData(e.currentTarget);
     const name = String(fd.get("name") || "").trim();
     const category = String(fd.get("category") || "Abarrotes").trim();
+    const baseUnit = (String(fd.get("baseUnit") || "kg") as WarehouseItem["baseUnit"]);
     const packageType = String(fd.get("packageType") || "Unidad").trim();
     const quantityUnit = String(fd.get("quantityUnit") || "").trim();
+    const packageFactor = Number(fd.get("packageFactor") || 1);
     const estimatedPrice = Number(fd.get("estimatedPrice") || 0);
     const store = String(fd.get("store") || "").trim();
     const notes = String(fd.get("notes") || "").trim();
@@ -289,33 +629,53 @@ export default function Home() {
       return;
     }
 
+    const calculatedUnit = packageFactor > 0 ? Number((estimatedPrice / packageFactor).toFixed(2)) : estimatedPrice;
+
     if (warehouseModal.item) {
       const editingId = warehouseModal.item.id;
       setWarehouseItems(items => items.map(item => item.id === editingId ? {
         ...item,
         name,
         category,
+        baseUnit,
         packageType,
-        quantityUnit,
+        quantityUnit: quantityUnit || `${packageFactor} ${baseUnit}`,
+        packageFactor: packageFactor > 0 ? packageFactor : 1,
         estimatedPrice,
         store,
         notes
       } : item));
       setNotice(`Producto "${name}" actualizado en el almacén`);
     } else {
+      const initialRecord: PriceRecord = {
+        id: `pr-${Date.now()}`,
+        period: activePeriod,
+        date: new Date().toISOString().slice(0, 10),
+        packageType,
+        packageFactor: packageFactor > 0 ? packageFactor : 1,
+        baseUnit,
+        totalPrice: estimatedPrice,
+        unitPrice: calculatedUnit,
+        store: store || undefined,
+        notes: notes || undefined
+      };
+
       const newItem: WarehouseItem = {
         id: Date.now(),
         name,
         category,
+        baseUnit,
         packageType,
-        quantityUnit,
+        quantityUnit: quantityUnit || `${packageFactor} ${baseUnit}`,
+        packageFactor: packageFactor > 0 ? packageFactor : 1,
         estimatedPrice,
         store,
         notes,
-        lastPurchasedPeriod: activePeriod
+        lastPurchasedPeriod: activePeriod,
+        priceHistory: [initialRecord]
       };
       setWarehouseItems(items => [newItem, ...items]);
-      setNotice(`Producto "${name}" agregado al almacén`);
+      setNotice(`Producto "${name}" agregado al almacén (S/ ${calculatedUnit.toFixed(2)} / ${baseUnit})`);
     }
     setWarehouseModal({ open: false, item: null });
   }
@@ -708,7 +1068,68 @@ export default function Home() {
         <button role="tab" aria-selected={expenseTab==="groups"} className={expenseTab==="groups"?"active":""} onClick={()=>setExpenseTab("groups")}><Layers3 size={17}/>Detalle por categoría</button>
       </div>
       {expenseTab!=="groups"&&<article className="card module-card expense-list-card"><div className="card-title"><div><h2>{expenseTab==="fixed"?"Pagos que se repiten cada mes":`Gastos variables de ${monthNames[selectedMonth]}`}</h2><p>{expenseTab==="fixed"?"Alquiler, ahorro, pasajes y servicios recurrentes.":"Solo se muestran los consumos del período seleccionado."}</p></div></div><div className="expense-rows">{(expenseTab==="fixed"?fixedExpenses:monthlyForPeriod).map(item=><div className="expense-row" key={item.id}><div className={`expense-kind-icon ${item.category==="Ahorro"?"saving":""}`}>{categoryIcon(item.category,"expense")}</div><div><strong>{item.name}</strong><span>{item.category} · {item.account||"Efectivo"} · {item.requiresConfirmation?(item.completed?"Realizado":"Pendiente de pago"):"Pronóstico"}</span></div><strong className="expense-value">S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>{item.requiresConfirmation&&<button className={`completion-toggle ${item.completed?"done":""}`} onClick={()=>toggleDetailedCompletion(expenseTab,item.id)} title={item.completed?"Realizado: volver a pendiente":"Marcar como realizado"}>{item.completed?<Check size={15}/>:<Circle size={15}/>}</button>}{expenseTab==="fixed"&&<button className="add-subexpense" onClick={()=>duplicateFixedExpense(item)}>Duplicar</button>}<button className="add-subexpense" onClick={()=>setDetailedEdit({section:expenseTab,id:item.id})}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeDetailedExpense(expenseTab,item.id)}><Trash2 size={15}/></button></div>)}{(expenseTab==="fixed"?fixedExpenses:monthlyForPeriod).length===0&&<div className="empty-state"><ReceiptText/><strong>Aún no tienes gastos en este período</strong><span>Usa “Agregar gasto” para registrarlo en {monthNames[selectedMonth]}.</span></div>}</div></article>}
-      {expenseTab==="groups"&&<section className="expense-groups">{expenseGroups.map(group=>{const total=group.items.reduce((sum,item)=>sum+item.amount,0);const open=openGroups.includes(group.id);return <article className="card expense-group" key={group.id}><div className="expense-group-head"><button className="expense-group-toggle" onClick={()=>setOpenGroups(items=>items.includes(group.id)?items.filter(id=>id!==group.id):[...items,group.id])}><ChevronRight className={open?"open":""} size={18}/><div><strong>{group.name}</strong><span>{group.items.length} subgastos · Monto definido S/ {group.budget.toLocaleString("es-PE")}</span></div></button><div className="expense-group-total"><span>Detalle registrado</span><strong>S/ {total.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong></div><button className="add-subexpense" onClick={()=>editExpenseGroup(group.id)}>Editar</button><button className="add-subexpense" onClick={()=>setExpenseModal({kind:"sub",groupId:group.id})}><Plus size={16}/>Subgasto</button><button className="expense-delete" aria-label={`Eliminar categoría ${group.name}`} onClick={()=>{setExpenseGroups(groups=>groups.filter(item=>item.id!==group.id));setNotice("Detalle de categoría eliminado")}}><Trash2 size={15}/></button></div><div className="progress group-progress"><i className={total>group.budget?"danger":""} style={{width:`${Math.min(100,total/group.budget*100)}%`}}/></div>{open&&<div className="subexpense-list">{group.items.map(item=><div className="subexpense-row" key={item.id}><span className="subexpense-dot"/><div><strong>{item.name}</strong><span>{item.category} · {item.requiresConfirmation?(item.completed?"Realizado":"Pendiente"):"Pronóstico"}</span></div><strong>S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>{item.requiresConfirmation&&<button className={`completion-toggle ${item.completed?"done":""}`} onClick={()=>toggleSubExpenseCompletion(group.id,item.id)} title={item.completed?"Realizado: volver a pendiente":"Marcar como realizado"}>{item.completed?<Check size={15}/>:<Circle size={15}/>}</button>}<button className="add-subexpense" onClick={()=>editSubExpense(group.id,item.id)}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeSubExpense(group.id,item.id)}><Trash2 size={14}/></button></div>)}{group.items.length===0&&<div className="empty-subexpenses">Esta categoría todavía no tiene subgastos.</div>}</div>}</article>})}{expenseGroups.length===0&&<article className="card empty-state group-empty"><Layers3/><strong>Activa el detalle de tu primera categoría</strong><span>Las categorías se crean desde Configuración.</span></article>}</section>}
+      {expenseTab==="groups"&&<section className="expense-groups">{expenseGroups.map(group=>{
+        const total=group.items.reduce((sum,item)=>sum+item.amount,0);
+        const open=openGroups.includes(group.id);
+        const currentFilter = groupNatureFilter[group.id] || "Todos";
+        const distinctCategories = Array.from(new Set(group.items.map(i => i.category || "General")));
+        const filteredItems = currentFilter === "Todos" ? group.items : group.items.filter(i => (i.category || "General") === currentFilter);
+
+        return <article className="card expense-group" key={group.id}>
+          <div className="expense-group-head">
+            <button className="expense-group-toggle" onClick={()=>setOpenGroups(items=>items.includes(group.id)?items.filter(id=>id!==group.id):[...items,group.id])}>
+              <ChevronRight className={open?"open":""} size={18}/>
+              <div>
+                <strong>{group.name}</strong>
+                <span>{group.items.length} subgastos · Monto definido S/ {group.budget.toLocaleString("es-PE")}</span>
+              </div>
+            </button>
+            <div className="expense-group-total">
+              <span>Detalle registrado</span>
+              <strong>S/ {total.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
+            </div>
+            <button className="add-subexpense" onClick={()=>editExpenseGroup(group.id)}>Editar</button>
+            <button className="add-subexpense" onClick={()=>setExpenseModal({kind:"sub",groupId:group.id})}><Plus size={16}/>Subgasto</button>
+            <button className="expense-delete" aria-label={`Eliminar categoría ${group.name}`} onClick={()=>{setExpenseGroups(groups=>groups.filter(item=>item.id!==group.id));setNotice("Detalle de categoría eliminado")}}><Trash2 size={15}/></button>
+          </div>
+          <div className="progress group-progress"><i className={total>group.budget?"danger":""} style={{width:`${Math.min(100,total/group.budget*100)}%`}}/></div>
+          {open&&<div className="subexpense-list">
+            {distinctCategories.length > 1 && (
+              <div className="nature-filter-bar">
+                <button
+                  type="button"
+                  className={`nature-filter-btn ${currentFilter==="Todos"?"active":""}`}
+                  onClick={()=>setGroupNatureFilter(prev=>({...prev, [group.id]: "Todos"}))}
+                >
+                  Todos ({group.items.length})
+                </button>
+                {distinctCategories.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`nature-filter-btn ${currentFilter===c?"active":""}`}
+                    onClick={()=>setGroupNatureFilter(prev=>({...prev, [group.id]: c}))}
+                  >
+                    {c} ({group.items.filter(i=>(i.category||"General")===c).length})
+                  </button>
+                ))}
+              </div>
+            )}
+            {filteredItems.map(item=><div className="subexpense-row" key={item.id}>
+              <span className="subexpense-dot"/>
+              <div>
+                <strong>{item.name}</strong>
+                <span>{item.category} · {item.account || "Efectivo"} · {item.requiresConfirmation?(item.completed?"Realizado":"Pendiente"):"Pronóstico"}</span>
+              </div>
+              <strong>S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
+              {item.requiresConfirmation&&<button className={`completion-toggle ${item.completed?"done":""}`} onClick={()=>toggleSubExpenseCompletion(group.id,item.id)} title={item.completed?"Realizado: volver a pendiente":"Marcar como realizado"}>{item.completed?<Check size={15}/>:<Circle size={15}/>}</button>}
+              <button className="add-subexpense" onClick={()=>editSubExpense(group.id,item.id)}>Editar</button>
+              <button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeSubExpense(group.id,item.id)}><Trash2 size={14}/></button>
+            </div>)}
+            {filteredItems.length===0&&<div className="empty-subexpenses">No hay subgastos en este filtro.</div>}
+          </div>}
+        </article>;
+      })}{expenseGroups.length===0&&<article className="card empty-state group-empty"><Layers3/><strong>Activa el detalle de tu primera categoría</strong><span>Las categorías se crean desde Configuración.</span></article>}</section>}
     </>;
     if(active==="Almacén") {
       const filteredWarehouseItems = warehouseItems.filter(item => {
@@ -723,17 +1144,16 @@ export default function Home() {
         <ModuleHeading
           eyebrow="CATÁLOGO Y DESPENSA"
           title="Almacén de Compras Habituales"
-          text="Registra exactamente qué compras, cuántos kilos o presentación tiene, dónde y su precio referencial para jalarlo cuando hagas tus compras de cada mes."
+          text="Registra exactamente qué compras, cuántos kilos o presentación tiene, y compara precios históricos entre meses para detectar subidas o ahorros."
           action={<button className="primary" onClick={()=>setWarehouseModal({open:true,item:null})}><Plus size={18}/>Nuevo producto en almacén</button>}
         />
 
         <div className="module-callout movement-callout">
           <Package/>
           <div>
-            <strong>¿Cómo funciona el Almacén?</strong>
+            <strong>📦 Historial y Control Inteligente de Precios</strong>
             <span>
-              Aquí guardas la especificación exacta de lo que compras (ej. <em>Arroz en saco de 50 kg</em>, <em>Aceite en caja de 12L</em>). 
-              Cuando vayas a comprarlo en el mes actual o en el siguiente (ej. Septiembre), solo pulsa <strong>"Registrar compra en {monthNames[selectedMonth]}"</strong> o selecciónalo en el formulario de movimiento.
+              Aquí puedes saber si el precio de un producto <strong>subió 🔺 o bajó 🔻</strong> entre meses (ej. Agosto vs Setiembre), y calcular el <strong>costo real por kilo/unidad</strong> cuando compras en saco de 5kg, saco de 50kg o unidades sueltas.
             </span>
           </div>
         </div>
@@ -777,78 +1197,105 @@ export default function Home() {
         </div>
 
         <section className="warehouse-grid">
-          {filteredWarehouseItems.map(item => (
-            <article className="card warehouse-card" key={item.id}>
-              <div className="warehouse-card-header">
-                <div className="warehouse-badges">
-                  <span className="warehouse-badge category">{item.category}</span>
-                  <span className="warehouse-badge package">{item.packageType}</span>
-                </div>
-                <div className="warehouse-price">
-                  <span>Precio ref.</span>
-                  <strong>S/ {item.estimatedPrice.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
-                </div>
-              </div>
+          {filteredWarehouseItems.map(item => {
+            const trendInfo = getWarehouseTrend(item);
+            const unitPrice = item.packageFactor > 0 ? item.estimatedPrice / item.packageFactor : item.estimatedPrice;
 
-              <h3 className="warehouse-title">{item.name}</h3>
-
-              <div className="warehouse-specs">
-                <div className="spec-row">
-                  <span className="spec-label">⚖️ Peso / Presentación:</span>
-                  <strong className="spec-val">{item.quantityUnit} ({item.packageType})</strong>
+            return (
+              <article className="card warehouse-card" key={item.id}>
+                <div className="warehouse-card-header">
+                  <div className="warehouse-badges">
+                    <span className="warehouse-badge category">{item.category}</span>
+                    <span className="warehouse-badge package">{item.packageType}</span>
+                  </div>
+                  <div className="warehouse-price">
+                    <span>Precio ref.</span>
+                    <strong>S/ {item.estimatedPrice.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
+                  </div>
                 </div>
-                {item.store && (
+
+                <h3 className="warehouse-title">{item.name}</h3>
+
+                <div className="warehouse-specs">
                   <div className="spec-row">
-                    <span className="spec-label">🏪 Lugar / Tienda:</span>
-                    <span className="spec-val">{item.store}</span>
+                    <span className="spec-label">⚖️ Peso / Presentación:</span>
+                    <strong className="spec-val">{item.quantityUnit}</strong>
+                  </div>
+                  <div className="spec-row">
+                    <span className="spec-label">💰 Costo por {item.baseUnit}:</span>
+                    <span className="unit-price-tag highlight">
+                      S/ {unitPrice.toFixed(2)} / {item.baseUnit}
+                    </span>
+                  </div>
+                  <div className="spec-row">
+                    <span className="spec-label">📈 Variación de precio:</span>
+                    <span className={`price-trend-badge ${trendInfo.trend}`}>
+                      {trendInfo.diffText}
+                    </span>
+                  </div>
+                  {item.store && (
+                    <div className="spec-row">
+                      <span className="spec-label">🏪 Lugar habitual:</span>
+                      <span className="spec-val">{item.store}</span>
+                    </div>
+                  )}
+                  {item.lastPurchasedPeriod && (
+                    <div className="spec-row">
+                      <span className="spec-label">📅 Última compra:</span>
+                      <span className="spec-val">{item.lastPurchasedPeriod}</span>
+                    </div>
+                  )}
+                </div>
+
+                {item.notes && (
+                  <div className="warehouse-notes">
+                    <p>💡 {item.notes}</p>
                   </div>
                 )}
-                {item.lastPurchasedPeriod && (
-                  <div className="spec-row">
-                    <span className="spec-label">📅 Última compra:</span>
-                    <span className="spec-val">{item.lastPurchasedPeriod}</span>
+
+                <div className="warehouse-card-actions">
+                  <button
+                    type="button"
+                    className="primary warehouse-buy-btn"
+                    onClick={()=>openBuyWarehouseModal(item)}
+                  >
+                    <Plus size={16}/> Registrar compra en {monthNames[selectedMonth]}
+                  </button>
+                  <div className="warehouse-mini-actions">
+                    <button
+                      type="button"
+                      className="outline"
+                      title="Ver historial y evolución de precios"
+                      onClick={()=>setPriceHistoryModal({open:true,item})}
+                    >
+                      <History size={14}/> Historial ({item.priceHistory?.length || 0})
+                    </button>
+                    <div style={{display:"flex",gap:"6px"}}>
+                      <button
+                        type="button"
+                        className="outline"
+                        onClick={()=>setWarehouseModal({open:true,item})}
+                      >
+                        <Pencil size={14}/> Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="expense-delete"
+                        title={`Eliminar ${item.name} del almacén`}
+                        aria-label={`Eliminar ${item.name}`}
+                        onClick={()=>{
+                          setWarehouseItems(items=>items.filter(i=>i.id!==item.id));
+                          setNotice(`Producto "${item.name}" eliminado del almacén`);
+                        }}
+                      >
+                        <Trash2 size={15}/>
+                      </button>
+                    </div>
                   </div>
-                )}
-              </div>
-
-              {item.notes && (
-                <div className="warehouse-notes">
-                  <p>💡 {item.notes}</p>
                 </div>
-              )}
-
-              <div className="warehouse-card-actions">
-                <button
-                  type="button"
-                  className="primary warehouse-buy-btn"
-                  onClick={()=>buyWarehouseItem(item)}
-                >
-                  <Plus size={16}/> Registrar compra en {monthNames[selectedMonth]}
-                </button>
-                <div className="warehouse-mini-actions">
-                  <button
-                    type="button"
-                    className="outline"
-                    onClick={()=>setWarehouseModal({open:true,item})}
-                  >
-                    <Pencil size={14}/> Editar
-                  </button>
-                  <button
-                    type="button"
-                    className="expense-delete"
-                    title={`Eliminar ${item.name} del almacén`}
-                    aria-label={`Eliminar ${item.name}`}
-                    onClick={()=>{
-                      setWarehouseItems(items=>items.filter(i=>i.id!==item.id));
-                      setNotice(`Producto "${item.name}" eliminado del almacén`);
-                    }}
-                  >
-                    <Trash2 size={15}/>
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </section>
 
         {filteredWarehouseItems.length === 0 && (
@@ -1045,7 +1492,302 @@ export default function Home() {
     </main>
 
     {showModal&&<div className="modal-backdrop" onMouseDown={closeMovementModal}><form className="modal" onSubmit={addTransaction} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nuevo movimiento</h2><p>Registra un ingreso o gasto en {monthNames[selectedMonth]} {selectedYear}.</p></div><button type="button" onClick={closeMovementModal}><X/></button></div><label>Tipo<select name="kind" value={movementKind} onChange={e=>setMovementKind(e.target.value as "income"|"expense")}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>{movementKind==="expense"&&<label>Tipo de gasto<select value={expenseType} onChange={e=>setExpenseType(e.target.value as "fixed"|"monthly"|"group")}><option value="fixed">Gasto fijo — se repite cada mes</option><option value="monthly">Gasto mensual — solo este mes</option><option value="group">Detalle por categoría</option></select></label>}{warehouseItems.length>0&&movementKind==="expense"&&<div className="warehouse-quick-pick"><span className="warehouse-quick-pick-label"><Package size={15}/> 📦 ¿Jalar producto habitual del Almacén?</span><select onChange={e=>{const val=Number(e.target.value);if(!val)return;const found=warehouseItems.find(item=>item.id===val);if(found){setMovementTitle(`${found.name} (${found.packageType} - ${found.quantityUnit})`);setMovementAmount(found.estimatedPrice>0?found.estimatedPrice.toString():"");if(categories.includes(found.category)){setMovementCategory(found.category);}setNotice(`✓ Datos cargados de "${found.name}"`);}}} defaultValue=""><option value="" disabled>Selecciona para autocompletar nombre, categoría y precio...</option>{warehouseItems.map(item=><option key={item.id} value={item.id}>{item.name} — {item.packageType} ({item.quantityUnit}) · S/ {item.estimatedPrice.toFixed(2)}</option>)}</select></div>}<label>Descripción<input name="title" required value={movementTitle} onChange={e=>setMovementTitle(e.target.value)} placeholder={movementKind==="income"?"Ej. Sueldo mensual":expenseType==="fixed"?"Ej. Alquiler":"Ej. Almuerzo"}/></label><div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={movementAmount} onChange={e=>setMovementAmount(e.target.value)} placeholder="0.00"/></label><label>Categoría<select name="category" value={movementKind==="income"?incomeCategories.includes(movementCategory)?movementCategory:incomeCategories[0]:movementCategory} onChange={e=>setMovementCategory(e.target.value)}>{(movementKind==="income"?incomeCategories:categories).map(category=><option key={category}>{category}</option>)}</select></label></div>{movementKind==="expense"&&movementCategory==="Ahorro"&&<label>Destino del ahorro<select name="savingDestination" value={String(savingDestination)} onChange={e=>setSavingDestination(e.target.value==="general"?"general":Number(e.target.value))}><option value="general">Ahorro general / indefinido</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}<label>Cuenta<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>{movementKind==="expense"&&movementCategory==="Ahorro"&&<p className="eyebrow">Este egreso se registrará también como aporte al destino que elegiste.</p>}{movementKind==="expense"&&expenseType==="group"&&movementCategory!=="Ahorro"&&<p className="eyebrow">Este movimiento se verá en el historial. Los subgastos se agregan desde Detalle por categoría.</p>}<div className="modal-actions"><button type="button" onClick={closeMovementModal}>Cancelar</button><button className="primary" type="submit">Guardar movimiento</button></div></form></div>}
-    {warehouseModal.open&&<div className="modal-backdrop" onMouseDown={()=>setWarehouseModal({open:false,item:null})}><form className="modal" onSubmit={saveWarehouseItem} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{warehouseModal.item?"Editar producto en almacén":"Nuevo producto en almacén"}</h2><p>Define la presentación, peso y precio habitual para jalarlo cuando hagas tus compras.</p></div><button type="button" onClick={()=>setWarehouseModal({open:false,item:null})}><X/></button></div><label>Nombre del producto / Marca<input name="name" required autoFocus defaultValue={warehouseModal.item?.name??""} placeholder="Ej. Arroz Extra Costeño, Aceite Primor, etc."/></label><div className="form-row"><label>Categoría<select name="category" defaultValue={warehouseModal.item?.category??"Abarrotes"}>{categories.map(cat=><option key={cat} value={cat}>{cat}</option>)}</select></label><label>Tipo de presentación<input name="packageType" required defaultValue={warehouseModal.item?.packageType??"Saco"} placeholder="Ej. Saco, Caja x 12, Bolsa, Botella, Pack"/></label></div><div className="form-row"><label>Cantidad / Peso / Volumen<input name="quantityUnit" required defaultValue={warehouseModal.item?.quantityUnit??"50 kg"} placeholder="Ej. 50 kg, 12 L, 40 rollos, 5 kg"/></label><label>Precio referencial habitual (S/)<input name="estimatedPrice" type="number" step="0.01" min="0" required defaultValue={warehouseModal.item?.estimatedPrice??""} placeholder="Ej. 165.00"/></label></div><label>Tienda / Lugar de compra habitual<input name="store" defaultValue={warehouseModal.item?.store??""} placeholder="Ej. Mercado Mayorista, Makro, Metro, Bodega..."/></label><label>Notas / Especificaciones adicionales<input name="notes" defaultValue={warehouseModal.item?.notes??""} placeholder="Ej. Grano largo, comprar el saco azul, rinde 2 meses..."/></label><div className="modal-actions"><button type="button" onClick={()=>setWarehouseModal({open:false,item:null})}>Cancelar</button><button className="primary" type="submit">{warehouseModal.item?"Guardar cambios":"Agregar a almacén"}</button></div></form></div>}
+    {warehouseModal.open&&<div className="modal-backdrop" onMouseDown={()=>setWarehouseModal({open:false,item:null})}><form className="modal" onSubmit={saveWarehouseItem} onMouseDown={e=>e.stopPropagation()}>
+      <div className="modal-title">
+        <div>
+          <h2>{warehouseModal.item?"Editar producto en almacén":"Nuevo producto en almacén"}</h2>
+          <p>Define la presentación, unidad base y precio habitual para seguimiento histórico.</p>
+        </div>
+        <button type="button" onClick={()=>setWarehouseModal({open:false,item:null})}><X/></button>
+      </div>
+      <label>Nombre del producto / Marca
+        <input name="name" required autoFocus defaultValue={warehouseModal.item?.name??""} placeholder="Ej. Arroz Extra Costeño, Aceite Primor, Cebolla Roja..."/>
+      </label>
+      <div className="form-row">
+        <label>Categoría
+          <select name="category" defaultValue={warehouseModal.item?.category??"Abarrotes"}>
+            {categories.map(cat=><option key={cat} value={cat}>{cat}</option>)}
+          </select>
+        </label>
+        <label>Unidad Base de Medida
+          <select name="baseUnit" defaultValue={warehouseModal.item?.baseUnit??"kg"}>
+            <option value="kg">Kilogramo (kg)</option>
+            <option value="g">Gramo (g)</option>
+            <option value="L">Litro (L)</option>
+            <option value="ml">Mililitro (ml)</option>
+            <option value="unidad">Unidad (u.)</option>
+            <option value="lata">Lata</option>
+            <option value="pañal">Pañal</option>
+            <option value="rollo">Rollo</option>
+            <option value="paquete">Paquete</option>
+          </select>
+        </label>
+      </div>
+      <div className="form-row">
+        <label>Tipo de presentación habitual
+          <input name="packageType" required defaultValue={warehouseModal.item?.packageType??"Saco 50 kg"} placeholder="Ej. Saco 50 kg, Caja x 12, Kilo, Jaba x 30"/>
+        </label>
+        <label>Factor a Unidad Base (Kilos/Litros/Unidades)
+          <input name="packageFactor" type="number" step="0.1" min="0.1" required defaultValue={warehouseModal.item?.packageFactor??1} placeholder="Ej. 50 (para saco de 50kg), 12 (para caja de 12L)"/>
+        </label>
+      </div>
+      <div className="form-row">
+        <label>Texto de peso / volumen (opcional)
+          <input name="quantityUnit" defaultValue={warehouseModal.item?.quantityUnit??""} placeholder="Ej. 50 kg, 12 L (1L c/u), 40 rollos"/>
+        </label>
+        <label>Precio referencial habitual (S/)
+          <input name="estimatedPrice" type="number" step="0.01" min="0" required defaultValue={warehouseModal.item?.estimatedPrice??""} placeholder="Ej. 165.00"/>
+        </label>
+      </div>
+      <label>Tienda / Lugar habitual de compra
+        <input name="store" defaultValue={warehouseModal.item?.store??""} placeholder="Ej. Mercado Mayorista, Makro, Metro, Bodega..."/>
+      </label>
+      <label>Notas / Rendimiento
+        <input name="notes" defaultValue={warehouseModal.item?.notes??""} placeholder="Ej. Rinde 2 meses, comprar saco azul de grano largo..."/>
+      </label>
+      <div className="modal-actions">
+        <button type="button" onClick={()=>setWarehouseModal({open:false,item:null})}>Cancelar</button>
+        <button className="primary" type="submit">{warehouseModal.item?"Guardar cambios":"Agregar a almacén"}</button>
+      </div>
+    </form></div>}
+
+    {warehouseBuyModal.open&&warehouseBuyModal.item&&(()=>{
+      const item = warehouseBuyModal.item;
+      const factor = warehouseBuyModal.packageFactor > 0 ? warehouseBuyModal.packageFactor : 1;
+      const qty = warehouseBuyModal.quantity > 0 ? warehouseBuyModal.quantity : 1;
+      const total = warehouseBuyModal.totalPrice >= 0 ? warehouseBuyModal.totalPrice : 0;
+      const currentUnit = total / (factor * qty);
+      
+      const lastRecord = item.priceHistory && item.priceHistory.length > 0 ? item.priceHistory[0] : null;
+      const prevUnit = lastRecord ? (lastRecord.unitPrice || (lastRecord.packageFactor > 0 ? lastRecord.totalPrice / lastRecord.packageFactor : lastRecord.totalPrice)) : (item.estimatedPrice / (item.packageFactor || 1));
+      const diff = currentUnit - prevUnit;
+      const percent = prevUnit > 0 ? ((diff / prevUnit) * 100) : 0;
+      const isSaving = diff < -0.01;
+      const isWarning = diff > 0.01;
+
+      return <div className="modal-backdrop" onMouseDown={()=>setWarehouseBuyModal(prev=>({...prev, open: false, item: null}))}>
+        <form className="modal" onSubmit={confirmWarehouseBuy} onMouseDown={e=>e.stopPropagation()}>
+          <div className="modal-title">
+            <div>
+              <p className="eyebrow">COMPRA EN {monthNames[selectedMonth].toUpperCase()} {selectedYear}</p>
+              <h2>Registrar compra de {item.name}</h2>
+              <p>Ajusta la presentación y el monto que pagaste hoy para calcular el costo por {item.baseUnit} y registrar la evolución.</p>
+            </div>
+            <button type="button" onClick={()=>setWarehouseBuyModal(prev=>({...prev, open: false, item: null}))}><X/></button>
+          </div>
+
+          <div className="form-row">
+            <label>Presentación que compraste
+              <input
+                value={warehouseBuyModal.packageType}
+                onChange={e=>setWarehouseBuyModal(prev=>({...prev, packageType: e.target.value}))}
+                placeholder="Ej. Saco 50 kg, Saco 5 kg, Bolsa 1 kg"
+                required
+              />
+            </label>
+            <label>Contenido por empaque (en {item.baseUnit})
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={warehouseBuyModal.packageFactor}
+                onChange={e=>setWarehouseBuyModal(prev=>({...prev, packageFactor: Number(e.target.value)}))}
+                placeholder="Ej. 50 para saco 50kg, 5 para saco 5kg, 1 para 1kg"
+                required
+              />
+            </label>
+          </div>
+
+          <div className="form-row">
+            <label>Cantidad de empaques
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={warehouseBuyModal.quantity}
+                onChange={e=>setWarehouseBuyModal(prev=>({...prev, quantity: Number(e.target.value)}))}
+                required
+              />
+            </label>
+            <label>Total pagado hoy (S/)
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={warehouseBuyModal.totalPrice || ""}
+                onChange={e=>setWarehouseBuyModal(prev=>({...prev, totalPrice: Number(e.target.value)}))}
+                placeholder="0.00"
+                required
+              />
+            </label>
+          </div>
+
+          {/* LIVE CALCULATION & COMPARISON BOX */}
+          <div className={`price-calc-box ${isSaving ? "saving" : isWarning ? "warning" : ""}`}>
+            <div className="price-calc-header">
+              <span className="price-calc-title">⚡ Análisis inteligente de costo</span>
+              <span className={`price-trend-badge ${isSaving ? "down" : isWarning ? "up" : "equal"}`}>
+                {isSaving ? `🔻 Ahorro de S/ ${Math.abs(diff).toFixed(2)}/${item.baseUnit}` : isWarning ? `🔺 +S/ ${diff.toFixed(2)}/${item.baseUnit}` : "= Mismo precio"}
+              </span>
+            </div>
+            <div className="price-calc-grid">
+              <div className="price-calc-item">
+                <span>Costo calculado por {item.baseUnit}</span>
+                <strong>S/ {Number.isFinite(currentUnit) ? currentUnit.toFixed(2) : "0.00"} / {item.baseUnit}</strong>
+              </div>
+              <div className="price-calc-item">
+                <span>Precio anterior ({lastRecord?.period || "Referencia"})</span>
+                <strong>S/ {prevUnit.toFixed(2)} / {item.baseUnit}</strong>
+              </div>
+            </div>
+            <div className={`price-calc-comparison ${isSaving ? "saving" : isWarning ? "warning" : "neutral"}`}>
+              {isSaving && <div>🎉 <strong>¡Excelente compra!</strong> Estás pagando un <strong>{Math.abs(percent).toFixed(1)}% menos</strong> por cada {item.baseUnit} comparado con la última compra.</div>}
+              {isWarning && <div>⚠️ <strong>Atención:</strong> El precio subió un <strong>+{percent.toFixed(1)}%</strong> (+S/ {diff.toFixed(2)} por {item.baseUnit}) respecto a {lastRecord?.period || "la referencia"}.</div>}
+              {!isSaving && !isWarning && <div>ℹ️ <strong>Precio estable:</strong> Estás pagando exactamente el mismo costo por {item.baseUnit}.</div>}
+            </div>
+          </div>
+
+          <div className="form-row">
+            <label>Registrar en
+              <select
+                value={String(warehouseBuyModal.destination)}
+                onChange={e=>setWarehouseBuyModal(prev=>({...prev, destination: e.target.value === "movement" ? "movement" : Number(e.target.value)}))}
+              >
+                <option value="movement">Movimiento directo del mes ({monthNames[selectedMonth]})</option>
+                {expenseGroups.map(g=><option key={g.id} value={g.id}>Subgasto de {g.name}</option>)}
+              </select>
+            </label>
+            <label>Medio de pago
+              <select
+                value={warehouseBuyModal.account}
+                onChange={e=>setWarehouseBuyModal(prev=>({...prev, account: e.target.value}))}
+              >
+                <option>Efectivo</option>
+                <option>Yape</option>
+                <option>BCP •• 2847</option>
+                <option>Interbank •• 9041</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="form-row">
+            <label>Lugar / Tienda de compra
+              <input
+                value={warehouseBuyModal.store}
+                onChange={e=>setWarehouseBuyModal(prev=>({...prev, store: e.target.value}))}
+                placeholder="Ej. Mercado Mayorista, Makro, Metro..."
+              />
+            </label>
+            <label>Notas de la compra (opcional)
+              <input
+                value={warehouseBuyModal.notes}
+                onChange={e=>setWarehouseBuyModal(prev=>({...prev, notes: e.target.value}))}
+                placeholder="Ej. Oferta 2x1, saco grande..."
+              />
+            </label>
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" onClick={()=>setWarehouseBuyModal(prev=>({...prev, open: false, item: null}))}>Cancelar</button>
+            <button className="primary" type="submit">Confirmar y registrar compra</button>
+          </div>
+        </form>
+      </div>;
+    })()}
+
+    {priceHistoryModal.open&&priceHistoryModal.item&&(()=>{
+      const item = priceHistoryModal.item;
+      const history = item.priceHistory || [];
+      const unitPrices = history.map(h => h.unitPrice || (h.packageFactor > 0 ? h.totalPrice / h.packageFactor : h.totalPrice)).filter(p => p > 0);
+      const minPrice = unitPrices.length > 0 ? Math.min(...unitPrices) : (item.estimatedPrice / (item.packageFactor || 1));
+      const maxPrice = unitPrices.length > 0 ? Math.max(...unitPrices) : (item.estimatedPrice / (item.packageFactor || 1));
+      const avgPrice = unitPrices.length > 0 ? (unitPrices.reduce((a,b)=>a+b,0) / unitPrices.length) : (item.estimatedPrice / (item.packageFactor || 1));
+
+      return <div className="modal-backdrop" onMouseDown={()=>setPriceHistoryModal({open:false,item:null})}>
+        <div className="modal" style={{maxWidth:"600px"}} onMouseDown={e=>e.stopPropagation()}>
+          <div className="modal-title">
+            <div>
+              <p className="eyebrow">HISTORIAL Y TENDENCIA DE PRECIOS</p>
+              <h2>{item.name}</h2>
+              <p>Evolución mensual de precios, presentaciones compradas y costos unitarios.</p>
+            </div>
+            <button type="button" onClick={()=>setPriceHistoryModal({open:false,item:null})}><X/></button>
+          </div>
+
+          <div className="history-stats-grid">
+            <div className="history-stat-card best">
+              <span>Mejor precio histórico</span>
+              <strong>S/ {minPrice.toFixed(2)} / {item.baseUnit}</strong>
+            </div>
+            <div className="history-stat-card">
+              <span>Precio promedio</span>
+              <strong>S/ {avgPrice.toFixed(2)} / {item.baseUnit}</strong>
+            </div>
+            <div className="history-stat-card high">
+              <span>Precio más alto</span>
+              <strong>S/ {maxPrice.toFixed(2)} / {item.baseUnit}</strong>
+            </div>
+          </div>
+
+          <div className="card-title" style={{marginBottom:"8px"}}>
+            <div>
+              <h3 style={{fontSize:"13px",fontWeight:700,margin:0}}>Compras registradas ({history.length})</h3>
+            </div>
+          </div>
+
+          <div className="history-timeline">
+            {history.map((record, index) => {
+              const prev = history[index + 1];
+              const currentUnit = record.unitPrice || (record.packageFactor > 0 ? record.totalPrice / record.packageFactor : record.totalPrice);
+              const prevUnit = prev ? (prev.unitPrice || (prev.packageFactor > 0 ? prev.totalPrice / prev.packageFactor : prev.totalPrice)) : null;
+              const diff = prevUnit !== null ? currentUnit - prevUnit : null;
+              const isSaving = diff !== null && diff < -0.01;
+              const isUp = diff !== null && diff > 0.01;
+
+              return (
+                <div className="history-entry" key={record.id || index}>
+                  <div className="history-entry-left">
+                    <div className="history-entry-period">
+                      <span>📅 {record.period || record.date}</span>
+                      {record.store && <small style={{color:"var(--muted)",fontWeight:500}}>· {record.store}</small>}
+                    </div>
+                    <span className="history-entry-pkg">📦 {record.packageType}</span>
+                  </div>
+                  <div className="history-entry-right">
+                    <span className="history-entry-total">S/ {record.totalPrice.toFixed(2)}</span>
+                    <span className="history-entry-unit">S/ {currentUnit.toFixed(2)} / {record.baseUnit}</span>
+                    {diff !== null && (
+                      <span className={`price-trend-badge ${isSaving ? "down" : isUp ? "up" : "equal"}`} style={{marginTop:"2px"}}>
+                        {isSaving ? `🔻 -S/ ${Math.abs(diff).toFixed(2)}` : isUp ? `🔺 +S/ ${diff.toFixed(2)}` : "= Mismo"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {history.length === 0 && (
+              <div className="empty-state">
+                <span>Aún no hay compras registradas para este producto.</span>
+              </div>
+            )}
+          </div>
+
+          <div className="modal-actions" style={{marginTop:"18px"}}>
+            <button type="button" onClick={()=>setPriceHistoryModal({open:false,item:null})}>Cerrar</button>
+            <button
+              className="primary"
+              type="button"
+              onClick={()=>{
+                setPriceHistoryModal({open:false,item:null});
+                openBuyWarehouseModal(item);
+              }}
+            >
+              <Plus size={16}/> Registrar nueva compra
+            </button>
+          </div>
+        </div>
+      </div>;
+    })()}
     {expenseModal&&<div className="modal-backdrop" onMouseDown={()=>setExpenseModal(null)}><form className="modal" onSubmit={addDetailedExpense} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{expenseModal.kind==="group"?"Activar detalle por categoría":expenseModal.kind==="sub"?"Agregar subgastos":expenseModal.kind==="fixed"?"Nuevo gasto fijo":"Nuevo gasto mensual"}</h2><p>{expenseModal.kind==="group"?"Escribe una categoría existente. Las categorías se administran únicamente en Configuración.":expenseModal.kind==="sub"?"Añade varias compras a esta categoría antes de guardar.":"Registra el concepto y su monto."}</p></div><button type="button" onClick={()=>setExpenseModal(null)}><X/></button></div>{expenseModal.kind==="sub"?<><div className="card-title"><div><h2>Detalle de subgastos</h2><p>{subRows.length} filas listas para registrar.</p></div><button type="button" className="add-subexpense" onClick={()=>setSubRows(rows=>[...rows,Date.now()+rows.length])}><Plus size={16}/>Agregar fila</button></div><label>Cuenta para estos subgastos<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>{subRows.map((row,index)=>{const category=subCategories[row]??categories.find(item=>item!=="Ahorro")??categories[0];return <div className="subexpense-form-row" key={row}><label>Descripción<input name="name" required autoFocus={index===0} placeholder="Ej. Mandarina"/></label><label>Categoría<select name="category" value={category} onChange={e=>setSubCategories(items=>({...items,[row]:e.target.value}))}>{categories.map(item=><option key={item}>{item}</option>)}</select></label>{category==="Ahorro"&&<label>Destino<select value={String(subSavingDestinations[row]??"general")} onChange={e=>setSubSavingDestinations(items=>({...items,[row]:e.target.value==="general"?"general":Number(e.target.value)}))}><option value="general">Ahorro general</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}<label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" placeholder="0.00"/></label>{subRows.length>1&&<button type="button" className="expense-delete" onClick={()=>setSubRows(rows=>rows.filter(item=>item!==row))}><Trash2 size={15}/></button>}</div>})}</>:<><label>{expenseModal.kind==="group"?"Categoría existente":"Descripción"}<input name="name" required autoFocus placeholder={expenseModal.kind==="group"?"Ej. Alimentación":"Ej. Alquiler"}/></label>{expenseModal.kind!=="group"&&<label>Categoría<select name="category">{categories.map(category=><option key={category}>{category}</option>)}</select></label>}<label>{expenseModal.kind==="group"?"Presupuesto mensual (S/)":"Monto (S/)"}<input name="amount" required type="number" min="0.01" step="0.01" placeholder="0.00"/></label>{expenseModal.kind!=="group"&&<label>Cuenta<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>}</>}<div className="modal-actions"><button type="button" onClick={()=>setExpenseModal(null)}>Cancelar</button><button className="primary" type="submit">{expenseModal.kind==="group"?"Activar detalle":expenseModal.kind==="sub"?`Guardar ${subRows.length} subgasto${subRows.length===1?"":"s"}`:"Guardar gasto"}</button></div></form></div>}
     {expenseEdit&&(()=>{const group=expenseGroups.find(item=>item.id===expenseEdit.groupId);const item=expenseEdit.kind==="sub"?group?.items.find(entry=>entry.id===expenseEdit.itemId):undefined;if(!group||expenseEdit.kind==="sub"&&!item)return null;const isGroup=expenseEdit.kind==="group";return <div className="modal-backdrop" onMouseDown={()=>setExpenseEdit(null)}><form className="modal" onSubmit={saveExpenseEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{isGroup?"Editar rubro":"Editar subgasto"}</h2><p>{isGroup?"Actualiza el nombre y el presupuesto. Los subgastos se conservan.":`Dentro del rubro ${group.name}.`}</p></div><button type="button" onClick={()=>setExpenseEdit(null)}><X/></button></div><label>{isGroup?"Nombre del rubro":"Descripción"}<input name="name" required autoFocus defaultValue={isGroup?group.name:item!.name}/></label>{!isGroup&&<label>Categoría<select name="category" defaultValue={item!.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label>}<label>{isGroup?"Presupuesto mensual (S/)":"Monto (S/)"}<input name="amount" required type="number" min="0" step="0.01" defaultValue={isGroup?group.budget:item!.amount}/></label><div className="module-callout"><ReceiptText/><div><strong>{isGroup?`${group.items.length} subgastos registrados`:`Periodo: ${monthNames[selectedMonth]} ${selectedYear}`}</strong><span>{isGroup?`Total usado actualmente: S/ ${group.items.reduce((sum,entry)=>sum+entry.amount,0).toLocaleString("es-PE",{minimumFractionDigits:2})}`:`Valor actual: S/ ${item!.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</span></div></div><div className="modal-actions"><button type="button" onClick={()=>setExpenseEdit(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
     {detailedEdit&&(()=>{const item=(detailedEdit.section==="fixed"?fixedExpenses:monthlyExpenses).find(entry=>entry.id===detailedEdit.id);if(!item)return null;return <div className="modal-backdrop" onMouseDown={()=>setDetailedEdit(null)}><form className="modal" onSubmit={saveDetailedEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Editar {detailedEdit.section==="fixed"?"gasto fijo":"gasto mensual"}</h2><p>Actualiza los datos sin perder el registro.</p></div><button type="button" onClick={()=>setDetailedEdit(null)}><X/></button></div><label>Descripción<input name="name" required autoFocus defaultValue={item.name}/></label><label>Categoría<select name="category" defaultValue={item.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><label>Monto (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={item.amount}/></label><div className="modal-actions"><button type="button" onClick={()=>setDetailedEdit(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
