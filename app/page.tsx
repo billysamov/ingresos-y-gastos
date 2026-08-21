@@ -60,92 +60,87 @@ const defaultIncomeCategories = ["Sueldo","Honorarios","Ventas","Freelance","Tra
 const defaultWarehouseItems: WarehouseItem[] = [
   {
     id: 1001,
-    name: "Arroz Extra Costeño",
-    category: "Abarrotes",
+    name: "Arroz (5 Kg)",
+    category: "Alimentación",
     baseUnit: "kg",
-    packageType: "Saco 50 kg",
-    quantityUnit: "50 kg",
-    packageFactor: 50,
-    estimatedPrice: 165.00,
-    store: "Mercado Mayorista",
-    notes: "Grano largo superior, rinde aprox. 2 meses.",
+    packageType: "Bolsa 5 kg",
+    quantityUnit: "5 kg",
+    packageFactor: 5,
+    estimatedPrice: 21.00,
+    store: "Mercado",
+    notes: "Arroz para cocina diaria registrado en Agosto.",
     lastPurchasedPeriod: "2026-08",
     priceHistory: [
-      { id: "pr-1", period: "2026-08", date: "2026-08-20", packageType: "Saco 50 kg", packageFactor: 50, baseUnit: "kg", totalPrice: 165.00, unitPrice: 3.30, store: "Mercado Mayorista" },
-      { id: "pr-2", period: "2026-08", date: "2026-08-02", packageType: "Bolsa 5 kg", packageFactor: 5, baseUnit: "kg", totalPrice: 21.00, unitPrice: 4.20, store: "Bodega" },
-      { id: "pr-3", period: "2026-07", date: "2026-07-15", packageType: "Saco 50 kg", packageFactor: 50, baseUnit: "kg", totalPrice: 160.00, unitPrice: 3.20, store: "Mercado Mayorista" }
+      { id: "pr-1", period: "2026-08", date: "2026-08-02", packageType: "Bolsa 5 kg", packageFactor: 5, baseUnit: "kg", totalPrice: 21.00, unitPrice: 4.20, store: "Mercado" }
     ]
   },
   {
     id: 1002,
-    name: "Aceite Vegetal Primor",
-    category: "Abarrotes",
-    baseUnit: "L",
-    packageType: "Caja x 12",
-    quantityUnit: "12 L (1L c/u)",
-    packageFactor: 12,
-    estimatedPrice: 98.00,
-    store: "Makro",
-    notes: "Comprar en caja para mejor precio por litro.",
+    name: "Huevo (2 Jabas)",
+    category: "Alimentación",
+    baseUnit: "unidad",
+    packageType: "2 Jabas (60 u.)",
+    quantityUnit: "60 huevos",
+    packageFactor: 60,
+    estimatedPrice: 29.00,
+    store: "Mercado",
+    notes: "2 jabas de huevos para el mes.",
     lastPurchasedPeriod: "2026-08",
     priceHistory: [
-      { id: "pr-4", period: "2026-08", date: "2026-08-10", packageType: "Caja x 12 (1L)", packageFactor: 12, baseUnit: "L", totalPrice: 98.00, unitPrice: 8.17, store: "Makro" },
-      { id: "pr-5", period: "2026-07", date: "2026-07-08", packageType: "Caja x 12 (1L)", packageFactor: 12, baseUnit: "L", totalPrice: 102.00, unitPrice: 8.50, store: "Makro" }
+      { id: "pr-2", period: "2026-08", date: "2026-08-02", packageType: "2 Jabas (60 u.)", packageFactor: 60, baseUnit: "unidad", totalPrice: 29.00, unitPrice: 0.48, store: "Mercado" }
     ]
   },
   {
     id: 1003,
-    name: "Cebolla Roja",
-    category: "Verduras",
-    baseUnit: "kg",
-    packageType: "Kilo suelto",
-    quantityUnit: "1 kg",
-    packageFactor: 1,
-    estimatedPrice: 2.50,
+    name: "Latas de Atún (5 UND)",
+    category: "Alimentación",
+    baseUnit: "lata",
+    packageType: "Pack 5 latas",
+    quantityUnit: "5 latas",
+    packageFactor: 5,
+    estimatedPrice: 25.00,
     store: "Mercado",
-    notes: "Para aderezos y ensaladas.",
+    notes: "Atún enlatado para despensa.",
     lastPurchasedPeriod: "2026-08",
     priceHistory: [
-      { id: "pr-6", period: "2026-08", date: "2026-08-02", packageType: "1 kg", packageFactor: 1, baseUnit: "kg", totalPrice: 2.50, unitPrice: 2.50, store: "Mercado" },
-      { id: "pr-7", period: "2026-07", date: "2026-07-22", packageType: "1 kg", packageFactor: 1, baseUnit: "kg", totalPrice: 2.80, unitPrice: 2.80, store: "Mercado" }
+      { id: "pr-3", period: "2026-08", date: "2026-08-02", packageType: "5 latas", packageFactor: 5, baseUnit: "lata", totalPrice: 25.00, unitPrice: 5.00, store: "Mercado" }
     ]
   },
   {
     id: 1004,
-    name: "Huevos Frescos",
-    category: "Abarrotes",
-    baseUnit: "unidad",
-    packageType: "Jaba x 30",
-    quantityUnit: "30 huevos",
-    packageFactor: 30,
-    estimatedPrice: 14.50,
+    name: "Leche Gloria light (3 cajas)",
+    category: "Alimentación",
+    baseUnit: "litro",
+    packageType: "3 Cajas x 1L",
+    quantityUnit: "3 Litros",
+    packageFactor: 3,
+    estimatedPrice: 16.50,
     store: "Mercado",
-    notes: "Proteína para desayunos y comidas.",
+    notes: "Leche light para desayunos.",
     lastPurchasedPeriod: "2026-08",
     priceHistory: [
-      { id: "pr-8", period: "2026-08", date: "2026-08-02", packageType: "2 Jabas (60 u.)", packageFactor: 60, baseUnit: "unidad", totalPrice: 29.00, unitPrice: 0.48, store: "Mercado" },
-      { id: "pr-9", period: "2026-07", date: "2026-07-25", packageType: "1 Jaba (30 u.)", packageFactor: 30, baseUnit: "unidad", totalPrice: 15.00, unitPrice: 0.50, store: "Mercado" }
+      { id: "pr-4", period: "2026-08", date: "2026-08-02", packageType: "3 Cajas 1L", packageFactor: 3, baseUnit: "litro", totalPrice: 16.50, unitPrice: 5.50, store: "Mercado" }
     ]
   },
   {
     id: 1005,
-    name: "Pollo Fresco (Pechuga)",
+    name: "Pollo (2 Pechugas)",
     category: "Alimentación",
-    baseUnit: "kg",
+    baseUnit: "unidad",
     packageType: "2 Pechugas",
-    quantityUnit: "1.5 kg aprox.",
-    packageFactor: 1.5,
+    quantityUnit: "2 pechugas",
+    packageFactor: 2,
     estimatedPrice: 15.50,
     store: "Mercado",
-    notes: "Proteína fresca para almuerzos.",
+    notes: "Pechugas frescas de pollo.",
     lastPurchasedPeriod: "2026-08",
     priceHistory: [
-      { id: "pr-10", period: "2026-08", date: "2026-08-02", packageType: "2 Pechugas (1.5 kg)", packageFactor: 1.5, baseUnit: "kg", totalPrice: 15.50, unitPrice: 10.33, store: "Mercado" }
+      { id: "pr-5", period: "2026-08", date: "2026-08-02", packageType: "2 Pechugas", packageFactor: 2, baseUnit: "unidad", totalPrice: 15.50, unitPrice: 7.75, store: "Mercado" }
     ]
   },
   {
     id: 1006,
-    name: "Pañales Babysec",
+    name: "Pañales Babysec (100 u.)",
     category: "Hogar",
     baseUnit: "pañal",
     packageType: "Paquete x 100",
@@ -153,94 +148,186 @@ const defaultWarehouseItems: WarehouseItem[] = [
     packageFactor: 100,
     estimatedPrice: 70.00,
     store: "Distribuidora",
-    notes: "Paquete grande para rinde mensual.",
+    notes: "Paquete familiar de pañales para bebé.",
     lastPurchasedPeriod: "2026-08",
     priceHistory: [
-      { id: "pr-11", period: "2026-08", date: "2026-08-02", packageType: "Paquete x 100", packageFactor: 100, baseUnit: "pañal", totalPrice: 70.00, unitPrice: 0.70, store: "Distribuidora" },
-      { id: "pr-12", period: "2026-07", date: "2026-07-12", packageType: "Paquete x 100", packageFactor: 100, baseUnit: "pañal", totalPrice: 74.00, unitPrice: 0.74, store: "Distribuidora" }
+      { id: "pr-6", period: "2026-08", date: "2026-08-02", packageType: "Paquete x 100", packageFactor: 100, baseUnit: "pañal", totalPrice: 70.00, unitPrice: 0.70, store: "Distribuidora" }
     ]
   },
   {
     id: 1007,
-    name: "Detergente Ariel en polvo",
+    name: "Toallitas Huggies",
     category: "Hogar",
-    baseUnit: "kg",
-    packageType: "Bolsa grande 15 kg",
-    quantityUnit: "15 kg",
-    packageFactor: 15,
-    estimatedPrice: 89.50,
-    store: "Mercado Mayorista",
-    notes: "Para lavadora automática, rinde 3 meses.",
+    baseUnit: "paquete",
+    packageType: "Pack toallitas",
+    quantityUnit: "1 pack",
+    packageFactor: 1,
+    estimatedPrice: 58.20,
+    store: "Distribuidora",
+    notes: "Toallitas húmedas para higiene del bebé.",
     lastPurchasedPeriod: "2026-08",
     priceHistory: [
-      { id: "pr-13", period: "2026-08", date: "2026-08-02", packageType: "Bolsa 4 kg", packageFactor: 4, baseUnit: "kg", totalPrice: 20.00, unitPrice: 5.00, store: "Bodega" },
-      { id: "pr-14", period: "2026-07", date: "2026-07-05", packageType: "Bolsa 15 kg", packageFactor: 15, baseUnit: "kg", totalPrice: 89.50, unitPrice: 5.97, store: "Mercado Mayorista" }
+      { id: "pr-7", period: "2026-08", date: "2026-08-02", packageType: "Pack toallitas", packageFactor: 1, baseUnit: "paquete", totalPrice: 58.20, unitPrice: 58.20, store: "Distribuidora" }
     ]
   },
   {
     id: 1008,
-    name: "Atún Primor en lata",
-    category: "Abarrotes",
-    baseUnit: "lata",
+    name: "Jabón ropa de BB Bolívar (6 Unidades)",
+    category: "Hogar",
+    baseUnit: "unidad",
     packageType: "Pack x 6",
-    quantityUnit: "6 latas (170g)",
+    quantityUnit: "6 unidades",
     packageFactor: 6,
-    estimatedPrice: 32.50,
-    store: "Metro",
-    notes: "Pack familiar de conservas de atún.",
+    estimatedPrice: 18.00,
+    store: "Mercado",
+    notes: "Jabón Bolívar especial para ropa de bebé.",
     lastPurchasedPeriod: "2026-08",
     priceHistory: [
-      { id: "pr-15", period: "2026-08", date: "2026-08-20", packageType: "Pack x 6", packageFactor: 6, baseUnit: "lata", totalPrice: 32.50, unitPrice: 5.42, store: "Metro" },
-      { id: "pr-16", period: "2026-08", date: "2026-08-02", packageType: "5 Latas sueltas", packageFactor: 5, baseUnit: "lata", totalPrice: 25.00, unitPrice: 5.00, store: "Bodega" }
+      { id: "pr-8", period: "2026-08", date: "2026-08-02", packageType: "Pack x 6", packageFactor: 6, baseUnit: "unidad", totalPrice: 18.00, unitPrice: 3.00, store: "Mercado" }
     ]
   },
   {
     id: 1009,
-    name: "Leche Gloria Azul Entera",
-    category: "Alimentación",
-    baseUnit: "lata",
-    packageType: "Plancha x 24",
-    quantityUnit: "24 latas (400g)",
-    packageFactor: 24,
-    estimatedPrice: 94.00,
-    store: "Makro / Distribuidora",
-    notes: "Pack familiar para desayuno.",
+    name: "Detergente (4 Kilos)",
+    category: "Hogar",
+    baseUnit: "kg",
+    packageType: "Bolsa 4 kg",
+    quantityUnit: "4 kg",
+    packageFactor: 4,
+    estimatedPrice: 20.00,
+    store: "Mercado",
+    notes: "Detergente para lavado de ropa.",
     lastPurchasedPeriod: "2026-08",
     priceHistory: [
-      { id: "pr-17", period: "2026-08", date: "2026-08-02", packageType: "3 Cajas de 1L", packageFactor: 3, baseUnit: "lata", totalPrice: 16.50, unitPrice: 5.50, store: "Bodega" },
-      { id: "pr-18", period: "2026-07", date: "2026-07-10", packageType: "Plancha x 24", packageFactor: 24, baseUnit: "lata", totalPrice: 94.00, unitPrice: 3.92, store: "Makro" }
+      { id: "pr-9", period: "2026-08", date: "2026-08-02", packageType: "Bolsa 4 kg", packageFactor: 4, baseUnit: "kg", totalPrice: 20.00, unitPrice: 5.00, store: "Mercado" }
     ]
   },
   {
     id: 1010,
-    name: "Azúcar Rubia Cartavio",
-    category: "Abarrotes",
-    baseUnit: "kg",
-    packageType: "Saco 50 kg",
-    quantityUnit: "50 kg",
-    packageFactor: 50,
-    estimatedPrice: 145.00,
-    store: "Mercado Mayorista",
-    notes: "Saco para consumo doméstico.",
-    lastPurchasedPeriod: "2026-07",
+    name: "Shampoo (1 Litro)",
+    category: "Hogar",
+    baseUnit: "litro",
+    packageType: "Botella 1L",
+    quantityUnit: "1 Litro",
+    packageFactor: 1,
+    estimatedPrice: 36.00,
+    store: "Mercado",
+    notes: "Shampoo familiar de 1 litro.",
+    lastPurchasedPeriod: "2026-08",
     priceHistory: [
-      { id: "pr-19", period: "2026-07", date: "2026-07-01", packageType: "Saco 50 kg", packageFactor: 50, baseUnit: "kg", totalPrice: 145.00, unitPrice: 2.90, store: "Mercado Mayorista" }
+      { id: "pr-10", period: "2026-08", date: "2026-08-02", packageType: "Botella 1L", packageFactor: 1, baseUnit: "litro", totalPrice: 36.00, unitPrice: 36.00, store: "Mercado" }
     ]
   },
   {
     id: 1011,
-    name: "Papel Higiénico Suave Gold",
-    category: "Hogar",
-    baseUnit: "rollo",
-    packageType: "Plancha x 40",
-    quantityUnit: "40 rollos",
-    packageFactor: 40,
-    estimatedPrice: 52.00,
-    store: "Makro",
-    notes: "Doble hoja, rinde mes y medio.",
+    name: "Pitahaya (2 kg)",
+    category: "Alimentación",
+    baseUnit: "kg",
+    packageType: "2 Kilos",
+    quantityUnit: "2 kg",
+    packageFactor: 2,
+    estimatedPrice: 15.00,
+    store: "Mercado",
+    notes: "Fruta fresca digestiva.",
     lastPurchasedPeriod: "2026-08",
     priceHistory: [
-      { id: "pr-20", period: "2026-08", date: "2026-08-01", packageType: "Plancha x 40", packageFactor: 40, baseUnit: "rollo", totalPrice: 52.00, unitPrice: 1.30, store: "Makro" }
+      { id: "pr-11", period: "2026-08", date: "2026-08-02", packageType: "2 kg", packageFactor: 2, baseUnit: "kg", totalPrice: 15.00, unitPrice: 7.50, store: "Mercado" }
+    ]
+  },
+  {
+    id: 1012,
+    name: "Palta Hass (2 Kilos)",
+    category: "Alimentación",
+    baseUnit: "kg",
+    packageType: "2 Kilos",
+    quantityUnit: "2 kg",
+    packageFactor: 2,
+    estimatedPrice: 10.50,
+    store: "Mercado",
+    notes: "Palta fresca para ensaladas y desayunos.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-12", period: "2026-08", date: "2026-08-02", packageType: "2 kg", packageFactor: 2, baseUnit: "kg", totalPrice: 10.50, unitPrice: 5.25, store: "Mercado" }
+    ]
+  },
+  {
+    id: 1013,
+    name: "Plátano",
+    category: "Alimentación",
+    baseUnit: "mano",
+    packageType: "Mano / Racimo",
+    quantityUnit: "1 racimo",
+    packageFactor: 1,
+    estimatedPrice: 11.70,
+    store: "Mercado",
+    notes: "Plátano para desayuno y lonchera.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-13", period: "2026-08", date: "2026-08-02", packageType: "Racimo", packageFactor: 1, baseUnit: "mano", totalPrice: 11.70, unitPrice: 11.70, store: "Mercado" }
+    ]
+  },
+  {
+    id: 1014,
+    name: "Cebolla (1 Kg)",
+    category: "Alimentación",
+    baseUnit: "kg",
+    packageType: "1 Kilo",
+    quantityUnit: "1 kg",
+    packageFactor: 1,
+    estimatedPrice: 2.50,
+    store: "Mercado",
+    notes: "Cebolla roja para aderezos.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-14", period: "2026-08", date: "2026-08-02", packageType: "1 kg", packageFactor: 1, baseUnit: "kg", totalPrice: 2.50, unitPrice: 2.50, store: "Mercado" }
+    ]
+  },
+  {
+    id: 1015,
+    name: "Papa blanca (1.2 kg)",
+    category: "Alimentación",
+    baseUnit: "kg",
+    packageType: "1.2 kg bolsa",
+    quantityUnit: "1.2 kg",
+    packageFactor: 1.2,
+    estimatedPrice: 3.00,
+    store: "Mercado",
+    notes: "Papa para guisos y almuerzos.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-15", period: "2026-08", date: "2026-08-02", packageType: "1.2 kg", packageFactor: 1.2, baseUnit: "kg", totalPrice: 3.00, unitPrice: 2.50, store: "Mercado" }
+    ]
+  },
+  {
+    id: 1016,
+    name: "Mandarina (1 Kg)",
+    category: "Alimentación",
+    baseUnit: "kg",
+    packageType: "1 Kilo",
+    quantityUnit: "1 kg",
+    packageFactor: 1,
+    estimatedPrice: 3.00,
+    store: "Mercado",
+    notes: "Mandarinas para lonchera.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-16", period: "2026-08", date: "2026-08-02", packageType: "1 kg", packageFactor: 1, baseUnit: "kg", totalPrice: 3.00, unitPrice: 3.00, store: "Mercado" }
+    ]
+  },
+  {
+    id: 1017,
+    name: "Tomate (1/2 Kilo)",
+    category: "Alimentación",
+    baseUnit: "kg",
+    packageType: "0.5 Kilo",
+    quantityUnit: "0.5 kg",
+    packageFactor: 0.5,
+    estimatedPrice: 1.50,
+    store: "Mercado",
+    notes: "Tomate para ensaladas y salsas.",
+    lastPurchasedPeriod: "2026-08",
+    priceHistory: [
+      { id: "pr-17", period: "2026-08", date: "2026-08-02", packageType: "0.5 kg", packageFactor: 0.5, baseUnit: "kg", totalPrice: 1.50, unitPrice: 3.00, store: "Mercado" }
     ]
   }
 ];
@@ -1049,12 +1136,55 @@ export default function Home() {
     setNotice(`🔓 Período ${period} reabierto como mes activo. ¡Puedes volver a cerrarlo cuando gustes!`);
   }
 
-  function restoreDefaultWarehouse() {
+  function addToWarehouseFromExpense(name: string, category: string, amount: number, account?: string) {
+    const existing = warehouseItems.find(w => w.name.toLowerCase().trim() === name.toLowerCase().trim());
+    if (existing) {
+      setNotice(`"${name}" ya existe en el Almacén.`);
+      return;
+    }
+    const newItem: WarehouseItem = {
+      id: Date.now(),
+      name,
+      category: category || "Alimentación",
+      baseUnit: "unidad",
+      packageType: "1 unidad",
+      quantityUnit: "1 u.",
+      packageFactor: 1,
+      estimatedPrice: amount,
+      store: "Mercado",
+      notes: `Registrado desde compra real de ${monthNames[selectedMonth]}`,
+      lastPurchasedPeriod: activePeriod,
+      priceHistory: [
+        {
+          id: `pr-${Date.now()}`,
+          period: activePeriod,
+          date: `${activePeriod}-01`,
+          packageType: "1 unidad",
+          packageFactor: 1,
+          baseUnit: "unidad",
+          totalPrice: amount,
+          unitPrice: amount,
+          store: "Mercado"
+        }
+      ]
+    };
+    setWarehouseItems(prev => [newItem, ...prev]);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("finanza_warehouse_items", JSON.stringify([newItem, ...warehouseItems]));
+    }
+    setNotice(`✓ "${name}" (S/ ${amount.toFixed(2)}) agregado a tu Almacén.`);
+  }
+
+  function importFromRealPurchases() {
     setWarehouseItems(defaultWarehouseItems);
     if (typeof window !== "undefined") {
       localStorage.setItem("finanza_warehouse_items", JSON.stringify(defaultWarehouseItems));
     }
-    setNotice("📦 Catálogo de Almacén restaurado con productos habituales (Arroz, Aceite, Cebolla, Huevos, etc.)");
+    setNotice(`✓ ${defaultWarehouseItems.length} compras reales importadas a tu Almacén.`);
+  }
+
+  function restoreDefaultWarehouse() {
+    importFromRealPurchases();
   }
 
   function resetToAugust() {
@@ -1323,6 +1453,7 @@ export default function Home() {
               </div>
               <strong>S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
               {item.requiresConfirmation&&<button className={`completion-toggle ${item.completed?"done":""}`} onClick={()=>toggleSubExpenseCompletion(group.id,item.id)} title={item.completed?"Realizado: volver a pendiente":"Marcar como realizado"}>{item.completed?<Check size={15}/>:<Circle size={15}/>}</button>}
+              <button className="add-subexpense" title="Guardar este producto en tu Almacén para futuras compras" onClick={()=>addToWarehouseFromExpense(item.name, item.category || group.name, item.amount, item.account)}><Package size={13}/> Almacén</button>
               <button className="add-subexpense" onClick={()=>editSubExpense(group.id,item.id)}>Editar</button>
               <button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeSubExpense(group.id,item.id)}><Trash2 size={14}/></button>
             </div>)}
@@ -1347,11 +1478,9 @@ export default function Home() {
           text="Registra exactamente qué compras, cuántos kilos o presentación tiene, y compara precios históricos entre meses para detectar subidas o ahorros."
           action={
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-              {warehouseItems.length === 0 && (
-                <button className="outline" type="button" onClick={restoreDefaultWarehouse}>
-                  <Package size={17}/> Cargar catálogo habitual
-                </button>
-              )}
+              <button className="outline" type="button" onClick={importFromRealPurchases} title="Sincronizar e importar los productos de tus compras reales">
+                <Package size={17}/> Sincronizar mis compras reales ({defaultWarehouseItems.length})
+              </button>
               <button className="primary" type="button" onClick={()=>setWarehouseModal({open:true,item:null})}>
                 <Plus size={18}/> Nuevo producto en almacén
               </button>
