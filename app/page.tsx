@@ -1183,10 +1183,6 @@ export default function Home() {
     setNotice(`✓ ${defaultWarehouseItems.length} compras reales importadas a tu Almacén.`);
   }
 
-  function restoreDefaultWarehouse() {
-    importFromRealPurchases();
-  }
-
   function resetToAugust() {
     setClosedPeriods([]);
     setSelectedYear(2026);
@@ -1198,7 +1194,7 @@ export default function Home() {
       localStorage.removeItem("finanza_closed_periods");
       localStorage.setItem("finanza_warehouse_items", JSON.stringify(defaultWarehouseItems));
     }
-    setNotice("🔄 Período restablecido a Agosto 2026 y catálogo de almacén recargado.");
+    setNotice("🔄 Período restablecido a Agosto 2026.");
   }
 
   function openCloseMonthModal() {
@@ -1475,16 +1471,10 @@ export default function Home() {
         <ModuleHeading
           eyebrow="CATÁLOGO Y DESPENSA"
           title="Almacén de Compras Habituales"
-          text="Registra exactamente qué compras, cuántos kilos o presentación tiene, y compara precios históricos entre meses para detectar subidas o ahorros."
           action={
-            <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-              <button className="outline" type="button" onClick={importFromRealPurchases} title="Sincronizar e importar los productos de tus compras reales">
-                <Package size={17}/> Sincronizar mis compras reales ({defaultWarehouseItems.length})
-              </button>
-              <button className="primary" type="button" onClick={()=>setWarehouseModal({open:true,item:null})}>
-                <Plus size={18}/> Nuevo producto en almacén
-              </button>
-            </div>
+            <button className="primary" type="button" onClick={()=>setWarehouseModal({open:true,item:null})}>
+              <Plus size={18}/> Nuevo producto en almacén
+            </button>
           }
         />
 
@@ -1576,7 +1566,7 @@ export default function Home() {
                   {item.store && (
                     <div className="spec-row">
                       <span className="spec-label">🏪 Lugar habitual:</span>
-                      <span className="spec-val">{item.store}</span>
+                      <strong className="spec-val">{item.store}</strong>
                     </div>
                   )}
                   {item.lastPurchasedPeriod && (
@@ -1642,23 +1632,15 @@ export default function Home() {
           <article className="card module-card empty-state" style={{padding:"45px 20px"}}>
             <Package size={36}/>
             <strong>No encontramos productos en el almacén</strong>
-            <span>{warehouseSearch ? "Prueba con otra búsqueda o limpia los filtros." : "Puedes agregar un producto nuevo o cargar el catálogo predeterminado de ejemplo."}</span>
-            <div style={{display:"flex",gap:"10px",flexWrap:"wrap",marginTop:"14px",justifyContent:"center"}}>
-              <button
-                type="button"
-                className="primary"
-                onClick={()=>setWarehouseModal({open:true,item:null})}
-              >
-                <Plus size={16}/> Agregar nuevo producto
-              </button>
-              <button
-                type="button"
-                className="outline"
-                onClick={restoreDefaultWarehouse}
-              >
-                <Package size={16}/> Cargar productos predeterminados (Arroz, Aceite, Cebolla, Huevos, etc.)
-              </button>
-            </div>
+            <span>{warehouseSearch ? "Prueba con otra búsqueda o limpia los filtros." : "Agrega tus productos de compras habituales para hacer seguimiento a sus precios."}</span>
+            <button
+              type="button"
+              className="primary"
+              style={{marginTop:"14px"}}
+              onClick={()=>setWarehouseModal({open:true,item:null})}
+            >
+              <Plus size={16}/> Agregar nuevo producto
+            </button>
           </article>
         )}
       </>;
