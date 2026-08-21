@@ -421,8 +421,16 @@ export default function Home() {
         if (savedWarehouse) {
           try {
             const parsed = JSON.parse(savedWarehouse);
-            if (Array.isArray(parsed) && parsed.length > 0) setWarehouseItems(parsed);
-          } catch {}
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setWarehouseItems(parsed);
+            } else {
+              setWarehouseItems(defaultWarehouseItems);
+            }
+          } catch {
+            setWarehouseItems(defaultWarehouseItems);
+          }
+        } else {
+          setWarehouseItems(defaultWarehouseItems);
         }
         const savedClosed = localStorage.getItem("finanza_closed_periods");
         if (savedClosed) {
@@ -1041,16 +1049,26 @@ export default function Home() {
     setNotice(`🔓 Período ${period} reabierto como mes activo. ¡Puedes volver a cerrarlo cuando gustes!`);
   }
 
+  function restoreDefaultWarehouse() {
+    setWarehouseItems(defaultWarehouseItems);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("finanza_warehouse_items", JSON.stringify(defaultWarehouseItems));
+    }
+    setNotice("📦 Catálogo de Almacén restaurado con productos habituales (Arroz, Aceite, Cebolla, Huevos, etc.)");
+  }
+
   function resetToAugust() {
     setClosedPeriods([]);
     setSelectedYear(2026);
     setSelectedMonth(7);
     setMonthAccess({ year: 2026, month: 7 });
     setTransactions(prev => prev.filter(t => (t.period ?? initialPeriod) !== "2026-09"));
+    setWarehouseItems(defaultWarehouseItems);
     if (typeof window !== "undefined") {
       localStorage.removeItem("finanza_closed_periods");
+      localStorage.setItem("finanza_warehouse_items", JSON.stringify(defaultWarehouseItems));
     }
-    setNotice("🔄 Período restablecido a Agosto 2026 (abierto y listo para probar el cierre de nuevo).");
+    setNotice("🔄 Período restablecido a Agosto 2026 y catálogo de almacén recargado.");
   }
 
   function openCloseMonthModal() {
@@ -1327,7 +1345,18 @@ export default function Home() {
           eyebrow="CATÁLOGO Y DESPENSA"
           title="Almacén de Compras Habituales"
           text="Registra exactamente qué compras, cuántos kilos o presentación tiene, y compara precios históricos entre meses para detectar subidas o ahorros."
-          action={<button className="primary" onClick={()=>setWarehouseModal({open:true,item:null})}><Plus size={18}/>Nuevo producto en almacén</button>}
+          action={
+            <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+              {warehouseItems.length === 0 && (
+                <button className="outline" type="button" onClick={restoreDefaultWarehouse}>
+                  <Package size={17}/> Cargar catálogo habitual
+                </button>
+              )}
+              <button className="primary" type="button" onClick={()=>setWarehouseModal({open:true,item:null})}>
+                <Plus size={18}/> Nuevo producto en almacén
+              </button>
+            </div>
+          }
         />
 
         <div className="module-callout movement-callout">
@@ -1484,15 +1513,23 @@ export default function Home() {
           <article className="card module-card empty-state" style={{padding:"45px 20px"}}>
             <Package size={36}/>
             <strong>No encontramos productos en el almacén</strong>
-            <span>{warehouseSearch ? "Prueba con otra búsqueda o limpia los filtros." : "Agrega tu primer artículo para tener tu catálogo listo."}</span>
-            <button
-              type="button"
-              className="primary"
-              style={{marginTop:"14px"}}
-              onClick={()=>setWarehouseModal({open:true,item:null})}
-            >
-              <Plus size={16}/> Agregar nuevo producto
-            </button>
+            <span>{warehouseSearch ? "Prueba con otra búsqueda o limpia los filtros." : "Puedes agregar un producto nuevo o cargar el catálogo predeterminado de ejemplo."}</span>
+            <div style={{display:"flex",gap:"10px",flexWrap:"wrap",marginTop:"14px",justifyContent:"center"}}>
+              <button
+                type="button"
+                className="primary"
+                onClick={()=>setWarehouseModal({open:true,item:null})}
+              >
+                <Plus size={16}/> Agregar nuevo producto
+              </button>
+              <button
+                type="button"
+                className="outline"
+                onClick={restoreDefaultWarehouse}
+              >
+                <Package size={16}/> Cargar productos predeterminados (Arroz, Aceite, Cebolla, Huevos, etc.)
+              </button>
+            </div>
           </article>
         )}
       </>;
