@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car, Check, ChevronDown, ChevronRight, Circle, CreditCard, History, Home as HomeIcon, Layers3, LayoutDashboard, Landmark, Menu, MoreHorizontal, Package, Pencil, PiggyBank, Plus, ReceiptText, Scale, Search, Settings, ShoppingBag, Smartphone, Target, Trash2, TrendingDown, TrendingUp, Utensils, WalletCards, X, Zap } from "lucide-react";
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car, Check, ChevronDown, ChevronRight, Circle, CreditCard, History, Home as HomeIcon, Layers3, LayoutDashboard, Landmark, Lock, Menu, MoreHorizontal, Package, Pencil, PiggyBank, Plus, ReceiptText, Scale, Search, Settings, ShoppingBag, Smartphone, Target, Trash2, TrendingDown, TrendingUp, Unlock, Utensils, WalletCards, X, Zap } from "lucide-react";
 import { deleteRelationalRecord, isSupabaseConfigured, loadRelationalFinanceState, saveRelationalFinanceState } from "../lib/supabase-state";
 
 type ExpenseSource = "fixed"|"monthly"|"category";
@@ -364,6 +364,33 @@ export default function Home() {
   });
   const [priceHistoryModal, setPriceHistoryModal] = useState<{ open: boolean; item: WarehouseItem | null }>({ open: false, item: null });
   const [groupNatureFilter, setGroupNatureFilter] = useState<Record<number, string>>({});
+  const [closedPeriods, setClosedPeriods] = useState<string[]>([]);
+  const [closeMonthModal, setCloseMonthModal] = useState<{
+    open: boolean;
+    period: string;
+    year: number;
+    month: number;
+    income: number;
+    expense: number;
+    balance: number;
+    savingsRate: number;
+    remanenteAction: "saving" | "carryover" | "none";
+  } | null>(null);
+  const [monthTransitionModal, setMonthTransitionModal] = useState<{
+    open: boolean;
+    fromPeriod: string;
+    toPeriod: string;
+    fromYear: number;
+    fromMonth: number;
+    toYear: number;
+    toMonth: number;
+    includeSalary: boolean;
+    salaryAmount: number;
+    selectedFixedIds: number[];
+    selectedWarehouseItemIds: number[];
+    remanenteAmount: number;
+    remanenteAction: "saving" | "carryover" | "none";
+  } | null>(null);
   const [warehouseSearch, setWarehouseSearch] = useState("");
   const [warehouseCategoryFilter, setWarehouseCategoryFilter] = useState("Todas");
   const [movementTitle, setMovementTitle] = useState("");
@@ -395,6 +422,13 @@ export default function Home() {
           try {
             const parsed = JSON.parse(savedWarehouse);
             if (Array.isArray(parsed) && parsed.length > 0) setWarehouseItems(parsed);
+          } catch {}
+        }
+        const savedClosed = localStorage.getItem("finanza_closed_periods");
+        if (savedClosed) {
+          try {
+            const parsed = JSON.parse(savedClosed);
+            if (Array.isArray(parsed)) setClosedPeriods(parsed);
           } catch {}
         }
       }
@@ -460,6 +494,11 @@ export default function Home() {
       localStorage.setItem("finanza_warehouse_items", JSON.stringify(warehouseItems));
     }
   },[warehouseItems,ready]);
+  useEffect(()=>{
+    if(typeof window !== "undefined" && ready) {
+      localStorage.setItem("finanza_closed_periods", JSON.stringify(closedPeriods));
+    }
+  },[closedPeriods,ready]);
   const activePeriod=`${selectedYear}-${String(selectedMonth+1).padStart(2,"0")}`;
   const activeSubGroup=expenseModal?.kind==="sub"?expenseGroups.find(group=>group.id===expenseModal.groupId):undefined;
   const currentSubTotal=activeSubGroup?.items.reduce((sum,item)=>sum+item.amount,0)??0;
@@ -981,35 +1020,157 @@ export default function Home() {
     setNotice("Copia de respaldo descargada");
   }
 
-  function isPeriodEnabled(year:number,month:number) {
-    return year<monthAccess.year || (year===monthAccess.year&&month<=monthAccess.month);
+  function isPeriodClosed(period: string) {
+    return closedPeriods.includes(period);
   }
 
-  function closeMonth() {
-    const next=selectedMonth===11?{year:selectedYear+1,month:0}:{year:selectedYear,month:selectedMonth+1};
-    if(!isPeriodEnabled(selectedYear,selectedMonth)) { setNotice("Este período todavía no está habilitado"); return; }
-    const nextIsLater=next.year>monthAccess.year||(next.year===monthAccess.year&&next.month>monthAccess.month);
-    if(nextIsLater) setMonthAccess(next);
-    setSelectedYear(next.year);setSelectedMonth(next.month);
-    const nextPeriod=`${next.year}-${String(next.month+1).padStart(2,"0")}`;
-    if(profile.autoRegisterSalary && profile.monthlySalary && profile.monthlySalary > 0) {
-      const hasSalaryInNext = transactions.some(t => (t.period ?? initialPeriod) === nextPeriod && t.kind === "income" && (t.category === "Sueldo" || t.title.toLowerCase().includes("sueldo")));
-      if (!hasSalaryInNext) {
-        const id = Date.now();
-        const salaryTx: Tx = {
-          id,
-          title: `Sueldo ${monthNames[next.month]} ${next.year}`,
-          category: "Sueldo",
-          account: "BCP •• 2847",
-          date: "Ahora",
-          amount: profile.monthlySalary,
-          kind: "income",
-          period: nextPeriod,
-        };
-        setTransactions(prev => [salaryTx, ...prev]);
-      }
+  function isPeriodEnabled(year:number,month:number) {
+    // Solo se puede navegar hasta el mes en curso permitido
+    return year < monthAccess.year || (year === monthAccess.year && month <= monthAccess.month);
+  }
+
+  function reopenMonth(period: string) {
+    setClosedPeriods(prev => prev.filter(p => p !== period));
+    setNotice(`🔓 Período ${period} reabierto para edición`);
+  }
+
+  function openCloseMonthModal() {
+    const income = actualTotals.income;
+    const expense = actualTotals.expense;
+    const balance = income - expense;
+    const savingsRate = income > 0 ? Math.max(0, Math.round((balance / income) * 100)) : 0;
+    setCloseMonthModal({
+      open: true,
+      period: activePeriod,
+      year: selectedYear,
+      month: selectedMonth,
+      income,
+      expense,
+      balance,
+      savingsRate,
+      remanenteAction: balance > 0 ? "saving" : "none"
+    });
+  }
+
+  function proceedToMonthTransition() {
+    if (!closeMonthModal) return;
+    const { period, year, month, balance, remanenteAction } = closeMonthModal;
+    
+    // 1. Marcar el mes cerrado
+    setClosedPeriods(prev => Array.from(new Set([...prev, period])));
+
+    // 2. Si eligió transferir a ahorro, crear movimiento de reserva
+    if (remanenteAction === "saving" && balance > 0) {
+      setSavings(s => s + balance);
+      setTransactions(prev => [{
+        id: Date.now(),
+        title: `Cierre ${monthNames[month]}: Traslado a Reserva de Ahorro`,
+        category: "Reserva de Ahorro",
+        account: "BCP •• 2847",
+        date: "Cierre de mes",
+        amount: balance,
+        kind: "expense",
+        period: period,
+        completed: true,
+        requiresConfirmation: false
+      }, ...prev]);
     }
-    setNotice(`${monthNames[selectedMonth]} cerrado. ${monthNames[next.month]} ${next.year} ya está habilitado.`);
+
+    const next = month === 11 ? { year: year + 1, month: 0 } : { year: year, month: month + 1 };
+    const nextPeriod = `${next.year}-${String(next.month + 1).padStart(2, "0")}`;
+
+    setCloseMonthModal(null);
+    setMonthTransitionModal({
+      open: true,
+      fromPeriod: period,
+      toPeriod: nextPeriod,
+      fromYear: year,
+      fromMonth: month,
+      toYear: next.year,
+      toMonth: next.month,
+      includeSalary: Boolean(profile.monthlySalary && profile.monthlySalary > 0),
+      salaryAmount: profile.monthlySalary || 0,
+      selectedFixedIds: fixedExpenses.map(f => f.id),
+      selectedWarehouseItemIds: [],
+      remanenteAmount: balance,
+      remanenteAction
+    });
+  }
+
+  function confirmMonthTransition(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!monthTransitionModal) return;
+    const { toPeriod, toYear, toMonth, includeSalary, salaryAmount, selectedWarehouseItemIds, remanenteAmount, remanenteAction, fromMonth, fromYear } = monthTransitionModal;
+
+    // Desbloquear nuevo período
+    const nextIsLater = toYear > monthAccess.year || (toYear === monthAccess.year && toMonth > monthAccess.month);
+    if (nextIsLater) {
+      setMonthAccess({ year: toYear, month: toMonth });
+    }
+    setSelectedYear(toYear);
+    setSelectedMonth(toMonth);
+
+    const newTxs: Tx[] = [];
+
+    // Registrar sueldo si se marcó
+    if (includeSalary && salaryAmount > 0) {
+      newTxs.push({
+        id: Date.now(),
+        title: `Sueldo ${monthNames[toMonth]} ${toYear}`,
+        category: "Sueldo",
+        account: "BCP •• 2847",
+        date: "01 " + monthNames[toMonth].slice(0, 3),
+        amount: salaryAmount,
+        kind: "income",
+        period: toPeriod,
+        completed: true,
+        requiresConfirmation: false
+      });
+    }
+
+    // Registrar remanente trasladado como saldo inicial si se seleccionó
+    if (remanenteAction === "carryover" && remanenteAmount > 0) {
+      newTxs.push({
+        id: Date.now() + 1,
+        title: `Saldo inicial remanente de ${monthNames[fromMonth]} ${fromYear}`,
+        category: "Otros ingresos",
+        account: "Efectivo",
+        date: "01 " + monthNames[toMonth].slice(0, 3),
+        amount: remanenteAmount,
+        kind: "income",
+        period: toPeriod,
+        completed: true,
+        requiresConfirmation: false
+      });
+    }
+
+    // Registrar insumos seleccionados de almacén como planificados
+    if (selectedWarehouseItemIds.length > 0) {
+      const selectedItems = warehouseItems.filter(item => selectedWarehouseItemIds.includes(item.id));
+      selectedItems.forEach((wItem, idx) => {
+        newTxs.push({
+          id: Date.now() + 10 + idx,
+          title: `${wItem.name} (${wItem.packageType} - ${wItem.quantityUnit})`,
+          category: wItem.category,
+          account: "Efectivo",
+          date: "Planificado",
+          amount: wItem.estimatedPrice,
+          kind: "expense",
+          period: toPeriod,
+          expenseSource: "monthly",
+          planned: true,
+          requiresConfirmation: true,
+          completed: false
+        });
+      });
+    }
+
+    if (newTxs.length > 0) {
+      setTransactions(prev => [...newTxs, ...prev]);
+    }
+
+    setMonthTransitionModal(null);
+    setNotice(`✓ ${monthNames[fromMonth]} cerrado. ¡${monthNames[toMonth]} ${toYear} iniciado exitosamente!`);
   }
 
   function addCategory(e:React.FormEvent<HTMLFormElement>) {
@@ -1030,9 +1191,10 @@ export default function Home() {
     ...periodTransactions.filter(t=>t.kind==="expense"),
     ...expenseEntriesForPeriod.filter(entry=>entry.source!=="category").map(({item})=>item),
     ...expenseGroups.flatMap(group=>{
-      const detailed=group.items.reduce((sum,item)=>sum+item.amount,0);
+      const groupPeriodItems = group.items.filter(item => (item.period ?? initialPeriod) === activePeriod);
+      const detailed=groupPeriodItems.reduce((sum,item)=>sum+item.amount,0);
       const remaining=Math.max(0,group.budget-detailed);
-      return [...group.items,...(remaining?[{id:-group.id,name:`Pendiente de ${group.name}`,category:group.name,amount:remaining}]:[])];
+      return [...groupPeriodItems,...(remaining?[{id:-group.id,name:`Pendiente de ${group.name}`,category:group.name,amount:remaining,period:activePeriod}]:[])];
     }),
   ];
   const expenseByCategory = categoryExpenseItems.reduce<Record<string,number>>((result,item)=>{
@@ -1069,11 +1231,12 @@ export default function Home() {
       </div>
       {expenseTab!=="groups"&&<article className="card module-card expense-list-card"><div className="card-title"><div><h2>{expenseTab==="fixed"?"Pagos que se repiten cada mes":`Gastos variables de ${monthNames[selectedMonth]}`}</h2><p>{expenseTab==="fixed"?"Alquiler, ahorro, pasajes y servicios recurrentes.":"Solo se muestran los consumos del período seleccionado."}</p></div></div><div className="expense-rows">{(expenseTab==="fixed"?fixedExpenses:monthlyForPeriod).map(item=><div className="expense-row" key={item.id}><div className={`expense-kind-icon ${item.category==="Ahorro"?"saving":""}`}>{categoryIcon(item.category,"expense")}</div><div><strong>{item.name}</strong><span>{item.category} · {item.account||"Efectivo"} · {item.requiresConfirmation?(item.completed?"Realizado":"Pendiente de pago"):"Pronóstico"}</span></div><strong className="expense-value">S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>{item.requiresConfirmation&&<button className={`completion-toggle ${item.completed?"done":""}`} onClick={()=>toggleDetailedCompletion(expenseTab,item.id)} title={item.completed?"Realizado: volver a pendiente":"Marcar como realizado"}>{item.completed?<Check size={15}/>:<Circle size={15}/>}</button>}{expenseTab==="fixed"&&<button className="add-subexpense" onClick={()=>duplicateFixedExpense(item)}>Duplicar</button>}<button className="add-subexpense" onClick={()=>setDetailedEdit({section:expenseTab,id:item.id})}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeDetailedExpense(expenseTab,item.id)}><Trash2 size={15}/></button></div>)}{(expenseTab==="fixed"?fixedExpenses:monthlyForPeriod).length===0&&<div className="empty-state"><ReceiptText/><strong>Aún no tienes gastos en este período</strong><span>Usa “Agregar gasto” para registrarlo en {monthNames[selectedMonth]}.</span></div>}</div></article>}
       {expenseTab==="groups"&&<section className="expense-groups">{expenseGroups.map(group=>{
-        const total=group.items.reduce((sum,item)=>sum+item.amount,0);
-        const open=openGroups.includes(group.id);
+        const groupPeriodItems = group.items.filter(item => (item.period ?? initialPeriod) === activePeriod);
+        const total = groupPeriodItems.reduce((sum,item)=>sum+item.amount,0);
+        const open = openGroups.includes(group.id);
         const currentFilter = groupNatureFilter[group.id] || "Todos";
-        const distinctCategories = Array.from(new Set(group.items.map(i => i.category || "General")));
-        const filteredItems = currentFilter === "Todos" ? group.items : group.items.filter(i => (i.category || "General") === currentFilter);
+        const distinctCategories = Array.from(new Set(groupPeriodItems.map(i => i.category || "General")));
+        const filteredItems = currentFilter === "Todos" ? groupPeriodItems : groupPeriodItems.filter(i => (i.category || "General") === currentFilter);
 
         return <article className="card expense-group" key={group.id}>
           <div className="expense-group-head">
@@ -1081,7 +1244,7 @@ export default function Home() {
               <ChevronRight className={open?"open":""} size={18}/>
               <div>
                 <strong>{group.name}</strong>
-                <span>{group.items.length} subgastos · Monto definido S/ {group.budget.toLocaleString("es-PE")}</span>
+                <span>{groupPeriodItems.length} subgastos en {monthNames[selectedMonth]} · Monto definido S/ {group.budget.toLocaleString("es-PE")}</span>
               </div>
             </button>
             <div className="expense-group-total">
@@ -1101,7 +1264,7 @@ export default function Home() {
                   className={`nature-filter-btn ${currentFilter==="Todos"?"active":""}`}
                   onClick={()=>setGroupNatureFilter(prev=>({...prev, [group.id]: "Todos"}))}
                 >
-                  Todos ({group.items.length})
+                  Todos ({groupPeriodItems.length})
                 </button>
                 {distinctCategories.map(c => (
                   <button
@@ -1110,7 +1273,7 @@ export default function Home() {
                     className={`nature-filter-btn ${currentFilter===c?"active":""}`}
                     onClick={()=>setGroupNatureFilter(prev=>({...prev, [group.id]: c}))}
                   >
-                    {c} ({group.items.filter(i=>(i.category||"General")===c).length})
+                    {c} ({groupPeriodItems.filter(i=>(i.category||"General")===c).length})
                   </button>
                 ))}
               </div>
@@ -1126,7 +1289,7 @@ export default function Home() {
               <button className="add-subexpense" onClick={()=>editSubExpense(group.id,item.id)}>Editar</button>
               <button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeSubExpense(group.id,item.id)}><Trash2 size={14}/></button>
             </div>)}
-            {filteredItems.length===0&&<div className="empty-subexpenses">No hay subgastos en este filtro.</div>}
+            {filteredItems.length===0&&<div className="empty-subexpenses">No hay subgastos registrados para {monthNames[selectedMonth]}. Usa "+ Subgasto" para registrar tus compras de este mes.</div>}
           </div>}
         </article>;
       })}{expenseGroups.length===0&&<article className="card empty-state group-empty"><Layers3/><strong>Activa el detalle de tu primera categoría</strong><span>Las categorías se crean desde Configuración.</span></article>}</section>}
@@ -1413,10 +1576,80 @@ export default function Home() {
       <header>
         <button className="menu" onClick={()=>setMobile(true)}><Menu/></button>
         <div className="search"><Search size={18}/><input aria-label="Buscar movimientos" value={search} onChange={e=>{setSearch(e.target.value);if(e.target.value.trim()) activateModule("Movimientos")}} placeholder="Buscar movimientos..." />{search&&<button aria-label="Limpiar búsqueda" onClick={()=>setSearch("")}><X size={15}/></button>}</div>
-        <div className="header-actions"><span className={`sync-status ${syncStatus}`}>{syncStatus==="synced"?"Guardado en Supabase":syncStatus==="saving"?"Guardando en Supabase…":syncStatus==="setup"?"Supabase: revisar conexión":"Conectando a Supabase…"}</span><button className="icon-button"><Bell size={19}/><i/></button><div className="month-picker"><button className="month" onClick={()=>setShowMonthPicker(open=>!open)}>{monthNames[selectedMonth]} {selectedYear} <ChevronDown size={16}/></button>{showMonthPicker&&<div className="month-menu"><div className="month-menu-head"><button type="button" onClick={()=>setSelectedYear(year=>year-1)}>‹</button><strong>{selectedYear}</strong><button type="button" onClick={()=>setSelectedYear(year=>year+1)}>›</button></div><div className="month-options">{monthNames.map((name,index)=>{const enabled=isPeriodEnabled(selectedYear,index);return <button type="button" disabled={!enabled} className={index===selectedMonth?"selected":""} key={name} onClick={()=>{if(!enabled) return;setSelectedMonth(index);setShowMonthPicker(false);setNotice(`Periodo seleccionado: ${name} ${selectedYear}`)}}>{name.slice(0,3)}</button>})}</div></div>}</div><button className="outline" type="button" onClick={closeMonth}>Cerrar {monthNames[selectedMonth]}</button><button className="primary" onClick={openNewMovementModal}><Plus size={18}/>Nuevo movimiento</button></div>
+        <div className="header-actions">
+          <span className={`sync-status ${syncStatus}`}>{syncStatus==="synced"?"Guardado en Supabase":syncStatus==="saving"?"Guardando en Supabase…":syncStatus==="setup"?"Supabase: revisar conexión":"Conectando a Supabase…"}</span>
+          <button className="icon-button"><Bell size={19}/><i/></button>
+          
+          {isPeriodClosed(activePeriod) ? (
+            <span className="month-status-pill closed" title="Este período está archivado">
+              <Lock size={12}/> Mes Cerrado
+            </span>
+          ) : (
+            <span className="month-status-pill active" title="Período en curso">
+              <Check size={12}/> Mes en Curso
+            </span>
+          )}
+
+          <div className="month-picker">
+            <button className="month" onClick={()=>setShowMonthPicker(open=>!open)}>
+              {monthNames[selectedMonth]} {selectedYear} <ChevronDown size={16}/>
+            </button>
+            {showMonthPicker&&<div className="month-menu">
+              <div className="month-menu-head">
+                <button type="button" disabled={selectedYear<=2025} onClick={()=>setSelectedYear(year=>Math.max(2025, year-1))}>‹</button>
+                <strong>{selectedYear}</strong>
+                <button type="button" disabled={selectedYear>=Math.max(2026, monthAccess.year)} onClick={()=>setSelectedYear(year=>Math.min(Math.max(2026, monthAccess.year), year+1))}>›</button>
+              </div>
+              <div className="month-options">
+                {monthNames.map((name,index)=>{
+                  const enabled=isPeriodEnabled(selectedYear,index);
+                  const pStr=`${selectedYear}-${String(index+1).padStart(2,"0")}`;
+                  const isClosed=closedPeriods.includes(pStr);
+                  return <button
+                    type="button"
+                    disabled={!enabled}
+                    className={index===selectedMonth?"selected":""}
+                    key={name}
+                    onClick={()=>{
+                      if(!enabled) return;
+                      setSelectedMonth(index);
+                      setShowMonthPicker(false);
+                      setNotice(`Periodo seleccionado: ${name} ${selectedYear}`);
+                    }}
+                  >
+                    {name.slice(0,3)} {isClosed ? "🔒" : ""}
+                  </button>;
+                })}
+              </div>
+            </div>}
+          </div>
+
+          {isPeriodClosed(activePeriod) ? (
+            <button className="outline" type="button" onClick={()=>reopenMonth(activePeriod)}>
+              <Unlock size={14}/> Reabrir mes
+            </button>
+          ) : (
+            <button className="outline" type="button" onClick={openCloseMonthModal}>
+              Cerrar {monthNames[selectedMonth]}
+            </button>
+          )}
+
+          <button className="primary" onClick={openNewMovementModal}><Plus size={18}/>Nuevo movimiento</button>
+        </div>
       </header>
 
       <div className="content">
+        {isPeriodClosed(activePeriod) && (
+          <div className="closed-month-banner">
+            <div className="closed-month-banner-left">
+              <Lock size={18}/>
+              <span>Este período (<strong>{monthNames[selectedMonth]} {selectedYear}</strong>) se encuentra <strong>cerrado y archivado</strong> como histórico contable.</span>
+            </div>
+            <button className="reopen-btn" type="button" onClick={()=>reopenMonth(activePeriod)}>
+              <Unlock size={14}/> Reabrir período para edición
+            </button>
+          </div>
+        )}
         {active!=="Resumen" ? moduleContent() : <>
         <div className="page-heading"><div><p className="eyebrow">PERÍODO: {monthNames[selectedMonth].toUpperCase()} {selectedYear}</p><h1>Buenos días, {profile.fullName} <span>👋</span></h1><p>Aquí tienes el resumen de tus finanzas de {monthNames[selectedMonth].toLowerCase()}.</p></div><button className="mobile-add primary" onClick={openNewMovementModal}><Plus size={18}/>Registrar</button></div>
 
@@ -1796,6 +2029,228 @@ export default function Home() {
     {showBudgetModal&&<div className="modal-backdrop" onMouseDown={()=>setShowBudgetModal(false)}><form className="modal" onSubmit={addBudget} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nuevo presupuesto</h2><p>Define el límite mensual de un rubro.</p></div><button type="button" onClick={()=>setShowBudgetModal(false)}><X/></button></div><label>Rubro<input name="name" required autoFocus placeholder="Ej. Alimentación"/></label><label>Límite mensual (S/)<input name="limit" required type="number" min="0.01" step="0.01" placeholder="0.00"/></label><label>Color<select name="color"><option value="purple">Morado</option><option value="blue">Azul</option><option value="orange">Naranja</option><option value="teal">Verde</option></select></label><div className="modal-actions"><button type="button" onClick={()=>setShowBudgetModal(false)}>Cancelar</button><button className="primary" type="submit">Crear presupuesto</button></div></form></div>}
     {editingMovement&&<div className="modal-backdrop" onMouseDown={()=>setEditingMovement(null)}><form className="modal" onSubmit={saveMovementEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Editar movimiento</h2><p>Actualiza este registro sin crear uno nuevo.</p></div><button type="button" onClick={()=>setEditingMovement(null)}><X/></button></div><label>Descripción<input name="title" required autoFocus defaultValue={editingMovement.title}/></label><div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" defaultValue={editingMovement.amount}/></label><label>Categoría<select name="category" defaultValue={editingMovement.category}>{(editingMovement.kind==="income"?incomeCategories:categories).map(category=><option key={category}>{category}</option>)}</select></label></div><label>Cuenta<select name="account" defaultValue={editingMovement.account}><option>Yape</option><option>BCP</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label><div className="modal-actions"><button type="button" onClick={()=>setEditingMovement(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>}
     {deleteConfirmation&&<div className="modal-backdrop" onMouseDown={()=>setDeleteConfirmation(null)}><section className="modal delete-confirmation" role="dialog" aria-modal="true" aria-labelledby="delete-title" onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><p className="eyebrow">CONFIRMACIÓN</p><h2 id="delete-title">¿Eliminar registro?</h2><p>{deleteConfirmation.message}</p></div><button type="button" aria-label="Cerrar" onClick={()=>setDeleteConfirmation(null)}><X/></button></div><div className="modal-actions"><button type="button" onClick={()=>setDeleteConfirmation(null)}>Cancelar</button><button className="danger-action" type="button" onClick={()=>{const action=deleteConfirmation.onConfirm;setDeleteConfirmation(null);action();}}>Eliminar</button></div></section></div>}
+
+    {closeMonthModal&&closeMonthModal.open&&<div className="modal-backdrop" onMouseDown={()=>setCloseMonthModal(null)}>
+      <div className="modal" style={{maxWidth:"550px"}} onMouseDown={e=>e.stopPropagation()}>
+        <div className="modal-title">
+          <div>
+            <p className="eyebrow">CIERRE CONTABLE</p>
+            <h2>Cerrar {monthNames[closeMonthModal.month]} {closeMonthModal.year}</h2>
+            <p>Revisa el balance contable final antes de archivar este período y pasar al siguiente mes.</p>
+          </div>
+          <button type="button" onClick={()=>setCloseMonthModal(null)}><X/></button>
+        </div>
+
+        <div className="transition-kpi-grid">
+          <div className="transition-kpi-card">
+            <span>Ingresos Reales</span>
+            <strong>S/ {closeMonthModal.income.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
+          </div>
+          <div className="transition-kpi-card">
+            <span>Gastos Realizados</span>
+            <strong>S/ {closeMonthModal.expense.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
+          </div>
+          <div className={`transition-kpi-card ${closeMonthModal.balance >= 0 ? "positive" : "negative"}`}>
+            <span>Remanente / Saldo</span>
+            <strong>{closeMonthModal.balance < 0 ? `-S/ ${Math.abs(closeMonthModal.balance).toLocaleString("es-PE",{minimumFractionDigits:2})}` : `S/ ${closeMonthModal.balance.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</strong>
+          </div>
+          <div className="transition-kpi-card savings">
+            <span>Tasa de Ahorro</span>
+            <strong>{closeMonthModal.savingsRate}%</strong>
+          </div>
+        </div>
+
+        {closeMonthModal.balance > 0 ? (
+          <div className="transition-section">
+            <div className="transition-section-title">
+              <span>💡 ¿Qué deseas hacer con el remanente disponible (S/ {closeMonthModal.balance.toLocaleString("es-PE",{minimumFractionDigits:2})})?</span>
+            </div>
+            <div className="remanente-options">
+              <label className="remanente-option">
+                <input
+                  type="radio"
+                  name="remanenteAction"
+                  checked={closeMonthModal.remanenteAction === "saving"}
+                  onChange={()=>setCloseMonthModal(prev=>prev?{...prev, remanenteAction: "saving"}:null)}
+                />
+                <div className="remanente-option-content">
+                  <strong>🏦 Guardar en Reserva de Ahorro General (Recomendado)</strong>
+                  <span>Suma los S/ {closeMonthModal.balance.toFixed(2)} a tu colchón financiero y lo aparta del consumo.</span>
+                </div>
+              </label>
+
+              <label className="remanente-option">
+                <input
+                  type="radio"
+                  name="remanenteAction"
+                  checked={closeMonthModal.remanenteAction === "carryover"}
+                  onChange={()=>setCloseMonthModal(prev=>prev?{...prev, remanenteAction: "carryover"}:null)}
+                />
+                <div className="remanente-option-content">
+                  <strong>➡️ Trasladar como saldo inicial disponible en {monthNames[closeMonthModal.month === 11 ? 0 : closeMonthModal.month + 1]}</strong>
+                  <span>Inicia el siguiente mes con este excedente listo para gastar.</span>
+                </div>
+              </label>
+
+              <label className="remanente-option">
+                <input
+                  type="radio"
+                  name="remanenteAction"
+                  checked={closeMonthModal.remanenteAction === "none"}
+                  onChange={()=>setCloseMonthModal(prev=>prev?{...prev, remanenteAction: "none"}:null)}
+                />
+                <div className="remanente-option-content">
+                  <strong>🔒 Solo archivar mes</strong>
+                  <span>No traslada saldos; cierra el período tal como está.</span>
+                </div>
+              </label>
+            </div>
+          </div>
+        ) : (
+          <div className="module-callout" style={{marginTop:"10px"}}>
+            <ReceiptText/>
+            <div>
+              <strong>Cierre sin remanente excedente</strong>
+              <span>El mes quedará archivado con sus transacciones e histórico en modo consulta.</span>
+            </div>
+          </div>
+        )}
+
+        <div className="modal-actions" style={{marginTop:"20px"}}>
+          <button type="button" onClick={()=>setCloseMonthModal(null)}>Cancelar</button>
+          <button className="primary" type="button" onClick={proceedToMonthTransition}>
+            Confirmar Cierre y Configurar {monthNames[closeMonthModal.month === 11 ? 0 : closeMonthModal.month + 1]} <ArrowRight size={16}/>
+          </button>
+        </div>
+      </div>
+    </div>}
+
+    {monthTransitionModal&&monthTransitionModal.open&&<div className="modal-backdrop" onMouseDown={()=>setMonthTransitionModal(null)}>
+      <form className="modal" style={{maxWidth:"600px"}} onSubmit={confirmMonthTransition} onMouseDown={e=>e.stopPropagation()}>
+        <div className="modal-title">
+          <div>
+            <p className="eyebrow">ASISTENTE DE TRANSICIÓN</p>
+            <h2>Configurar {monthNames[monthTransitionModal.toMonth]} {monthTransitionModal.toYear}</h2>
+            <p>Selecciona exactamente qué elementos y previsiones deseas activar en tu nuevo mes.</p>
+          </div>
+          <button type="button" onClick={()=>setMonthTransitionModal(null)}><X/></button>
+        </div>
+
+        {/* 1. Sueldo base */}
+        {monthTransitionModal.salaryAmount > 0 && (
+          <div className="transition-section">
+            <div className="transition-section-title">
+              <span>💼 Ingreso de Sueldo Base</span>
+            </div>
+            <label className="transition-item">
+              <div className="transition-item-left">
+                <input
+                  type="checkbox"
+                  checked={monthTransitionModal.includeSalary}
+                  onChange={e=>setMonthTransitionModal(prev=>prev?{...prev, includeSalary: e.target.checked}:null)}
+                />
+                <span>Registrar Sueldo de {monthNames[monthTransitionModal.toMonth]} automáticamente</span>
+              </div>
+              <strong className="transition-item-right">S/ {monthTransitionModal.salaryAmount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
+            </label>
+          </div>
+        )}
+
+        {/* 2. Gastos fijos */}
+        {fixedExpenses.length > 0 && (
+          <div className="transition-section">
+            <div className="transition-section-title">
+              <span>⚡ Gastos Fijos Recurrentes ({monthTransitionModal.selectedFixedIds.length}/{fixedExpenses.length})</span>
+              <button
+                type="button"
+                style={{background:"none",border:"none",color:"var(--blue)",cursor:"pointer",fontSize:"11px",fontWeight:700}}
+                onClick={()=>{
+                  setMonthTransitionModal(prev => {
+                    if (!prev) return null;
+                    const allSelected = prev.selectedFixedIds.length === fixedExpenses.length;
+                    return { ...prev, selectedFixedIds: allSelected ? [] : fixedExpenses.map(f => f.id) };
+                  });
+                }}
+              >
+                {monthTransitionModal.selectedFixedIds.length === fixedExpenses.length ? "Desmarcar todos" : "Seleccionar todos"}
+              </button>
+            </div>
+            <div className="transition-checklist">
+              {fixedExpenses.map(item => {
+                const isChecked = monthTransitionModal.selectedFixedIds.includes(item.id);
+                return (
+                  <label className="transition-item" key={item.id}>
+                    <div className="transition-item-left">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={()=>{
+                          setMonthTransitionModal(prev => {
+                            if (!prev) return null;
+                            const ids = isChecked ? prev.selectedFixedIds.filter(id => id !== item.id) : [...prev.selectedFixedIds, item.id];
+                            return { ...prev, selectedFixedIds: ids };
+                          });
+                        }}
+                      />
+                      <span>{item.name} <small style={{color:"var(--muted)"}}>({item.category})</small></span>
+                    </div>
+                    <strong className="transition-item-right">S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 3. Reabastecimiento de Almacén sugerido */}
+        {warehouseItems.length > 0 && (
+          <div className="transition-section">
+            <div className="transition-section-title">
+              <span>📦 Reabastecimiento de Almacén Sugerido ({monthTransitionModal.selectedWarehouseItemIds.length})</span>
+            </div>
+            <div className="transition-checklist">
+              {warehouseItems.slice(0, 6).map(item => {
+                const isChecked = monthTransitionModal.selectedWarehouseItemIds.includes(item.id);
+                return (
+                  <label className="transition-item" key={item.id}>
+                    <div className="transition-item-left">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={()=>{
+                          setMonthTransitionModal(prev => {
+                            if (!prev) return null;
+                            const ids = isChecked ? prev.selectedWarehouseItemIds.filter(id => id !== item.id) : [...prev.selectedWarehouseItemIds, item.id];
+                            return { ...prev, selectedWarehouseItemIds: ids };
+                          });
+                        }}
+                      />
+                      <span>{item.name} <small style={{color:"var(--muted)"}}>({item.packageType} - {item.quantityUnit})</small></span>
+                    </div>
+                    <strong className="transition-item-right">S/ {item.estimatedPrice.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="module-callout" style={{marginTop:"14px"}}>
+          <Layers3/>
+          <div>
+            <strong>Tus categorías de gasto comenzarán limpias</strong>
+            <span>Categorías como <em>Mercado</em> o <em>Alimentación</em> mantendrán su presupuesto asignado y empezarán listas para registrar las compras de {monthNames[monthTransitionModal.toMonth]}.</span>
+          </div>
+        </div>
+
+        <div className="modal-actions" style={{marginTop:"18px"}}>
+          <button type="button" onClick={()=>setMonthTransitionModal(null)}>Cancelar</button>
+          <button className="primary" type="submit">
+            Comenzar {monthNames[monthTransitionModal.toMonth]} {monthTransitionModal.toYear} ✓
+          </button>
+        </div>
+      </form>
+    </div>}
     {notice&&<div className="toast">✓ {notice}</div>}
   </div>
 }
