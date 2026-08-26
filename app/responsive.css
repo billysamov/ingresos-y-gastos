@@ -108,9 +108,6 @@
   .budget-grid {
     grid-template-columns: 1fr !important;
   }
-  .account-grid {
-    grid-template-columns: 1fr !important;
-  }
   .savings-goal-grid {
     grid-template-columns: 1fr !important;
   }
@@ -466,15 +463,6 @@
   }
   .history-stat-card span {
     font-size: 9px !important;
-  }
-
-  /* CUENTAS EN MÓVIL */
-  .account-cards-grid {
-    grid-template-columns: 1fr !important;
-    gap: 12px !important;
-  }
-  .account-card-box {
-    padding: 14px !important;
   }
 
   /* METAS Y AHORROS EN MÓVIL */

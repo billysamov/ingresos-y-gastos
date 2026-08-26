@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, AlertCircle, ArrowDown, ArrowDownLeft, ArrowRight, ArrowUp, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car, Check, ChevronDown, ChevronRight, Circle, CreditCard, History, Home as HomeIcon, Layers3, LayoutDashboard, Landmark, Lock, Menu, MoreHorizontal, Package, Pencil, Percent, PiggyBank, Plus, ReceiptText, Scale, Search, Settings, ShieldCheck, ShoppingBag, Smartphone, Sparkles, Target, Trash2, TrendingDown, TrendingUp, Unlock, Utensils, WalletCards, X, Zap } from "lucide-react";
+import { Activity, AlertCircle, ArrowDown, ArrowDownLeft, ArrowRight, ArrowUp, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car, Check, ChevronDown, ChevronRight, Circle, CreditCard, History, Home as HomeIcon, Layers3, LayoutDashboard, Lock, Menu, MoreHorizontal, Package, Pencil, Percent, PiggyBank, Plus, ReceiptText, Scale, Search, Settings, ShieldCheck, ShoppingBag, Smartphone, Sparkles, Target, Trash2, TrendingDown, TrendingUp, Unlock, Utensils, WalletCards, X, Zap } from "lucide-react";
 import { deleteRelationalRecord, isSupabaseConfigured, loadRelationalFinanceState, saveRelationalFinanceState } from "../lib/supabase-state";
 
 type ExpenseSource = "fixed"|"monthly"|"category";
-type Tx = { id:number; dbId?:string; dbUpdatedAt?:string; title:string; category:string; account:string; date:string; amount:number; kind:"income"|"expense"; period?:string; expenseSource?:ExpenseSource; sourceId?:number; groupName?:string; savingDestination?:"general"|number; planned?:boolean; requiresConfirmation?:boolean; completed?:boolean; warehouseItemId?:number };
+type Tx = { id:number; dbId?:string; dbUpdatedAt?:string; title:string; category:string; account?:string; date:string; amount:number; kind:"income"|"expense"; period?:string; expenseSource?:ExpenseSource; sourceId?:number; groupName?:string; savingDestination?:"general"|number; planned?:boolean; requiresConfirmation?:boolean; completed?:boolean; warehouseItemId?:number };
 type ExpenseEntry = { id:number; dbId?:string; dbUpdatedAt?:string; name:string; category:string; amount:number; period?:string; account?:string; transactionId?:number; savingDestination?:"general"|number; requiresConfirmation?:boolean; completed?:boolean; warehouseItemId?:number };
 type ExpenseGroup = { id:number; dbId?:string; dbUpdatedAt?:string; name:string; budget:number; items:ExpenseEntry[] };
 type ExpenseModal = { kind:"fixed"|"monthly"|"group"|"sub"; groupId?:number } | null;
@@ -355,14 +355,14 @@ function getWarehouseTrend(item: WarehouseItem) {
 }
 
 function legacyTransactionId(item: Partial<Tx>, index:number) {
-  const fingerprint=[item.title,item.category,item.account,item.amount,item.period,index].join("|");
+  const fingerprint=[item.title,item.category,item.amount,item.period,index].join("|");
   let hash=0;
   for(let position=0;position<fingerprint.length;position++) hash=(hash*31+fingerprint.charCodeAt(position))>>>0;
   return 1_000_000_000+hash;
 }
 
 const nav = [
-  ["Resumen", LayoutDashboard], ["Movimientos", WalletCards], ["Gastos", ReceiptText], ["Almacén", Package], ["Metas de ahorro", Target], ["Reportes", TrendingUp], ["Cuentas", Landmark],
+  ["Resumen", LayoutDashboard], ["Movimientos", WalletCards], ["Gastos", ReceiptText], ["Almacén", Package], ["Metas de ahorro", Target], ["Reportes", TrendingUp],
 ] as const;
 const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
@@ -379,11 +379,11 @@ function expenseSourceLabel(source?:ExpenseSource,groupName?:string) {
 }
 
 function Metric({label,value,delta,icon,tone,progress}:{label:string,value:number,delta:string,icon:React.ReactNode,tone:string,progress?:number}) { return <article className="metric card"><div className={`metric-icon ${tone}`}>{icon}</div><div><span>{label}</span><strong>S/ {value.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><small className={tone}>{delta}</small>{progress&&<div className="mini-progress"><i style={{width:`${progress}%`}}/></div>}</div></article> }
-function Account({logo,color,name,type,amount}:{logo:string,color:string,name:string,type:string,amount:string}) { return <article className="account-card card"><div className="account-logo" style={{background:color}}>{logo}</div><div><strong>{name}</strong><span>{type}</span></div><div className="account-balance"><strong>{amount}</strong><span>Saldo disponible</span></div><button><MoreHorizontal/></button></article> }
+
 export default function Home() {
   function ModuleHeading({eyebrow,title,text,action}:{eyebrow:string,title:string,text:string,action?:React.ReactNode}) { return <div className="page-heading module-heading"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{text}</p></div>{action}</div> }
   function MiniStat({label,value,tone="blue",plain=false}:{label:string,value:number,tone?:string,plain?:boolean}) { return <article className="card mini-stat"><span>{label}</span><strong>{plain?value:`S/ ${value.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</strong><i className={tone}/></article> }
-  function TransactionList({items,onDelete,onToggle,onEdit}:{items:Tx[],onDelete:(id:number)=>void;onToggle:(item:Tx)=>void;onEdit:(item:Tx)=>void}) { return <div className="tx-list">{items.map(t=><div className="tx" key={`${t.expenseSource??"transaction"}-${t.id}`}><div className={`tx-icon ${t.kind}`}>{categoryIcon(t.category,t.kind)}</div><div className="tx-main"><div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}><strong>{t.title}</strong>{t.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}</div>{t.expenseSource&&<small className="transaction-origin">{expenseSourceLabel(t.expenseSource,t.groupName)}</small>}<span>{t.category} · {t.account}</span></div><div className="tx-date">{t.requiresConfirmation?(t.completed?"Realizado":"Pendiente"):t.date}</div><div className={`tx-amount ${t.kind}`}>{t.kind==="income"?"+":"−"} S/ {t.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</div>{t.requiresConfirmation&&<button className={`completion-toggle ${t.completed?"done":""}`} aria-label={`${t.completed?"Marcar pendiente":"Marcar realizado"} ${t.title}`} title={t.completed?"Realizado: volver a pendiente":"Marcar como realizado"} onClick={()=>onToggle(t)}>{t.completed?<Check size={15}/>:<Circle size={15}/>}</button>}{t.id>=0&&<button className="edit-tx" aria-label={`Editar ${t.title}`} title="Editar movimiento" onClick={()=>onEdit(t)}><Pencil size={14}/></button>}<button className="delete-tx" aria-label={`Eliminar ${t.title}`} onClick={()=>onDelete(t.id)}><Trash2 size={14}/></button></div>)}{items.length===0&&<div className="empty-state"><Search size={22}/><strong>No encontramos movimientos</strong><span>No hay coincidencias en {monthNames[selectedMonth]} {selectedYear}.</span></div>}</div> }
+  function TransactionList({items,onDelete,onToggle,onEdit}:{items:Tx[],onDelete:(id:number)=>void;onToggle:(item:Tx)=>void;onEdit:(item:Tx)=>void}) { return <div className="tx-list">{items.map(t=><div className="tx" key={`${t.expenseSource??"transaction"}-${t.id}`}><div className={`tx-icon ${t.kind}`}>{categoryIcon(t.category,t.kind)}</div><div className="tx-main"><div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}><strong>{t.title}</strong>{t.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}</div>{t.expenseSource&&<small className="transaction-origin">{expenseSourceLabel(t.expenseSource,t.groupName)}</small>}<span>{t.category}</span></div><div className="tx-date">{t.requiresConfirmation?(t.completed?"Realizado":"Pendiente"):t.date}</div><div className={`tx-amount ${t.kind}`}>{t.kind==="income"?"+":"−"} S/ {t.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</div>{t.requiresConfirmation&&<button className={`completion-toggle ${t.completed?"done":""}`} aria-label={`${t.completed?"Marcar pendiente":"Marcar realizado"} ${t.title}`} title={t.completed?"Realizado: volver a pendiente":"Marcar como realizado"} onClick={()=>onToggle(t)}>{t.completed?<Check size={15}/>:<Circle size={15}/>}</button>}{t.id>=0&&<button className="edit-tx" aria-label={`Editar ${t.title}`} title="Editar movimiento" onClick={()=>onEdit(t)}><Pencil size={14}/></button>}<button className="delete-tx" aria-label={`Eliminar ${t.title}`} onClick={()=>onDelete(t.id)}><Trash2 size={14}/></button></div>)}{items.length===0&&<div className="empty-state"><Search size={22}/><strong>No encontramos movimientos</strong><span>No hay coincidencias en {monthNames[selectedMonth]} {selectedYear}.</span></div>}</div> }
 
   const [active, setActive] = useState("Resumen");
   const [editingMovement, setEditingMovement] = useState<Tx|null>(null);
@@ -442,7 +442,6 @@ export default function Home() {
     quantity: number;
     totalPrice: number;
     destination: "movement" | number;
-    account: string;
     store: string;
     notes: string;
   }>({
@@ -453,7 +452,6 @@ export default function Home() {
     quantity: 1,
     totalPrice: 0,
     destination: "movement",
-    account: "Efectivo",
     store: "",
     notes: ""
   });
@@ -652,7 +650,7 @@ export default function Home() {
   // Los representamos en el historial sin duplicar los que ya tienen movimiento.
   const detailedExpenseTransactions = useMemo<Tx[]>(() => expenseEntriesForPeriod.map(entry => ({
     id: -Math.abs(entry.item.id), title: entry.item.name, category: entry.item.category,
-    account: entry.item.account ?? "Efectivo", date: "Gasto registrado", amount: entry.item.amount,
+    date: "Gasto registrado", amount: entry.item.amount,
     kind: "expense", period: activePeriod, expenseSource: entry.source, sourceId: entry.item.id,
     planned: true, requiresConfirmation: entry.item.requiresConfirmation, completed: entry.item.completed,
     warehouseItemId: entry.item.warehouseItemId
@@ -684,7 +682,7 @@ export default function Home() {
   const balance = accumulatedTotals.income - accumulatedTotals.expense;
   const projectedBalance = totals.income - totals.expense;
   const chartMax = Math.max(totals.income, totals.expense, 1000);
-  const visibleTransactions = allPeriodTransactions.filter(t => `${t.title} ${t.category} ${t.account}`.toLowerCase().includes(search.toLowerCase()));
+  const visibleTransactions = allPeriodTransactions.filter(t => `${t.title} ${t.category}`.toLowerCase().includes(search.toLowerCase()));
 
   function openNewMovementModal() {
     setMovementTitle("");
@@ -700,7 +698,7 @@ export default function Home() {
     setSelectedMovementWarehouseId(null);
   }
 
-  function recordWarehousePurchaseHistory(warehouseId: number, totalPrice: number, period: string, options?: { account?: string; store?: string; notes?: string; packageType?: string; packageFactor?: number }) {
+  function recordWarehousePurchaseHistory(warehouseId: number, totalPrice: number, period: string, options?: { store?: string; notes?: string; packageType?: string; packageFactor?: number }) {
     const item = warehouseItems.find(w => w.id === warehouseId);
     if (!item) return null;
 
@@ -759,7 +757,6 @@ export default function Home() {
       quantity: 1,
       totalPrice: item.estimatedPrice,
       destination: matchingGroup ? matchingGroup.id : "movement",
-      account: "Efectivo",
       store: item.store || "",
       notes: ""
     });
@@ -769,7 +766,7 @@ export default function Home() {
     e.preventDefault();
     if (!warehouseBuyModal.item) return;
     const item = warehouseBuyModal.item;
-    const { packageType, packageFactor, quantity, totalPrice, destination, account, store, notes } = warehouseBuyModal;
+    const { packageType, packageFactor, quantity, totalPrice, destination, store, notes } = warehouseBuyModal;
     
     const effectiveFactor = (packageFactor > 0 ? packageFactor : 1) * (quantity > 0 ? quantity : 1);
     const title = `${item.name} (${packageType}${quantity > 1 ? ` x ${quantity}` : ""})`;
@@ -777,7 +774,6 @@ export default function Home() {
 
     // 1. Update warehouse price history with shared function
     const res = recordWarehousePurchaseHistory(item.id, totalPrice, activePeriod, {
-      account,
       store,
       notes,
       packageType: `${packageType}${quantity > 1 ? ` x ${quantity}` : ""}`,
@@ -790,14 +786,13 @@ export default function Home() {
     if (typeof destination === "number") {
       setExpenseGroups(groups => groups.map(g => g.id === destination ? {
         ...g,
-        items: [{ id, name: title, category: item.category, amount: totalPrice, period: activePeriod, account, completed: true, requiresConfirmation: true, warehouseItemId: item.id }, ...g.items]
+        items: [{ id, name: title, category: item.category, amount: totalPrice, period: activePeriod, completed: true, requiresConfirmation: true, warehouseItemId: item.id }, ...g.items]
       } : g));
     } else {
       setTransactions(prev => [{
         id,
         title,
         category: item.category,
-        account,
         date: "Ahora",
         amount: totalPrice,
         kind: "expense",
@@ -809,7 +804,7 @@ export default function Home() {
       }, ...prev]);
     }
 
-    setWarehouseBuyModal({ open: false, item: null, packageType: "", packageFactor: 1, quantity: 1, totalPrice: 0, destination: "movement", account: "Efectivo", store: "", notes: "" });
+    setWarehouseBuyModal({ open: false, item: null, packageType: "", packageFactor: 1, quantity: 1, totalPrice: 0, destination: "movement", store: "", notes: "" });
     setNotice(`✓ Compra registrada de "${item.name}" — ${trendMsg}`);
     setTimeout(() => setNotice(""), 3500);
   }
@@ -888,23 +883,22 @@ export default function Home() {
     const fd = new FormData(e.currentTarget);
     const kind = fd.get("kind") as "income"|"expense";
     const id=Date.now(); const title=String(fd.get("title")||movementTitle).trim(); const category=String(fd.get("category")||movementCategory); const amount=Number(fd.get("amount")||movementAmount);
-    const account=String(fd.get("account"));
     const source=kind==="expense"&&expenseType!=="group"?expenseType:undefined;
     const planned=kind==="expense"&&fd.get("planned")==="on";
     const requiresConfirmation=planned&&fd.get("requiresConfirmation")==="on";
 
     let trendMsg = "";
     if (kind === "expense" && selectedMovementWarehouseId && amount > 0) {
-      const res = recordWarehousePurchaseHistory(selectedMovementWarehouseId, amount, activePeriod, { account });
+      const res = recordWarehousePurchaseHistory(selectedMovementWarehouseId, amount, activePeriod);
       if (res) trendMsg = ` (${res.trendMsg})`;
     }
 
     setTransactions(prev => {
-      const next = [{ id, title, category, account, date:"Ahora", amount, kind, period:activePeriod, expenseSource:source, sourceId:source?id:undefined, savingDestination:kind==="expense"&&category==="Ahorro"?savingDestination:undefined, planned, requiresConfirmation, completed:planned?false:true, warehouseItemId:selectedMovementWarehouseId||undefined }, ...prev];
+      const next = [{ id, title, category, date:"Ahora", amount, kind, period:activePeriod, expenseSource:source, sourceId:source?id:undefined, savingDestination:kind==="expense"&&category==="Ahorro"?savingDestination:undefined, planned, requiresConfirmation, completed:planned?false:true, warehouseItemId:selectedMovementWarehouseId||undefined }, ...prev];
       return next;
     });
-    if(kind==="expense"&&expenseType==="fixed") setFixedExpenses(items=>[{id,name:title,category,amount,account,transactionId:id,requiresConfirmation,completed:planned?false:true,warehouseItemId:selectedMovementWarehouseId||undefined},...items]);
-    if(kind==="expense"&&expenseType==="monthly") setMonthlyExpenses(items=>[{id,name:title,category,amount,account,period:activePeriod,transactionId:id,requiresConfirmation,completed:planned?false:true,warehouseItemId:selectedMovementWarehouseId||undefined},...items]);
+    if(kind==="expense"&&expenseType==="fixed") setFixedExpenses(items=>[{id,name:title,category,amount,transactionId:id,requiresConfirmation,completed:planned?false:true,warehouseItemId:selectedMovementWarehouseId||undefined},...items]);
+    if(kind==="expense"&&expenseType==="monthly") setMonthlyExpenses(items=>[{id,name:title,category,amount,period:activePeriod,transactionId:id,requiresConfirmation,completed:planned?false:true,warehouseItemId:selectedMovementWarehouseId||undefined},...items]);
     if(kind==="expense"&&category==="Ahorro") {
       if(savingDestination==="general") setSavings(value=>value+amount);
       else setSavingsGoals(items=>items.map(goal=>goal.id===savingDestination?{...goal,amount:Math.min(goal.target,goal.amount+amount)}:goal));
@@ -920,13 +914,12 @@ export default function Home() {
     const form=new FormData(e.currentTarget);
     const title=String(form.get("title")||"").trim();
     const category=String(form.get("category")||"Otros");
-    const account=String(form.get("account")||"Efectivo");
     const amount=Number(form.get("amount")||0);
     if(!title||!Number.isFinite(amount)||amount<=0) { setNotice("Completa los datos correctamente"); return; }
     const id=editingMovement.id;
-    setTransactions(items=>items.map(item=>item.id===id?{...item,title,category,account,amount}:item));
-    if(editingMovement.expenseSource==="fixed"&&editingMovement.sourceId) setFixedExpenses(items=>items.map(item=>item.id===editingMovement.sourceId?{...item,name:title,category,account,amount}:item));
-    if(editingMovement.expenseSource==="monthly"&&editingMovement.sourceId) setMonthlyExpenses(items=>items.map(item=>item.id===editingMovement.sourceId?{...item,name:title,category,account,amount}:item));
+    setTransactions(items=>items.map(item=>item.id===id?{...item,title,category,amount}:item));
+    if(editingMovement.expenseSource==="fixed"&&editingMovement.sourceId) setFixedExpenses(items=>items.map(item=>item.id===editingMovement.sourceId?{...item,name:title,category,amount}:item));
+    if(editingMovement.expenseSource==="monthly"&&editingMovement.sourceId) setMonthlyExpenses(items=>items.map(item=>item.id===editingMovement.sourceId?{...item,name:title,category,amount}:item));
     setEditingMovement(null);
     setNotice("Movimiento actualizado correctamente");
   }
@@ -946,7 +939,7 @@ export default function Home() {
   }
 
   function contributeToSaving(e:React.FormEvent<HTMLFormElement>) {
-    e.preventDefault(); if(savingContributionTarget===null) return; const fd=new FormData(e.currentTarget); const amount=Number(fd.get("amount")||0); const operation=String(fd.get("operation")||"add"); const account=String(fd.get("account")||"BCP •• 2847");
+    e.preventDefault(); if(savingContributionTarget===null) return; const fd=new FormData(e.currentTarget); const amount=Number(fd.get("amount")||0); const operation=String(fd.get("operation")||"add");
     if(!Number.isFinite(amount)||amount<=0) { setNotice("Ingresa un monto válido"); return; }
     const delta=operation==="withdraw"?-amount:amount;
     const goalObj = typeof savingContributionTarget === "number" ? savingsGoals.find(g => g.id === savingContributionTarget) : null;
@@ -960,7 +953,6 @@ export default function Home() {
       id,
       title: operation === "withdraw" ? `Retiro de ${targetName}` : `Aporte a ${targetName}`,
       category: "Reserva de Ahorro",
-      account,
       date: "Ahora",
       amount,
       kind: operation === "withdraw" ? "income" : "expense",
@@ -969,7 +961,7 @@ export default function Home() {
     setTransactions(prev => [tx, ...prev]);
 
     setSavingContributionTarget(null);
-    setNotice(operation === "withdraw" ? `Retiro de S/ ${amount} registrado` : `Aporte de S/ ${amount} registrado (${account})`);
+    setNotice(operation === "withdraw" ? `Retiro de S/ ${amount} registrado` : `Aporte de S/ ${amount} registrado`);
   }
 
   function removeTransaction(id:number, confirmed=false) {
@@ -1093,7 +1085,6 @@ export default function Home() {
     const name=String(fd.get("name")||expenseModalTitle).trim();
     const amount=Number(fd.get("amount")||expenseModalAmount||0);
     const category=String(fd.get("category")||expenseModalCategory||"Otros");
-    const account=String(fd.get("account")||"Efectivo");
     const id=Date.now();
     if(expenseModal.kind==="group"&&!categories.some(item=>item.toLocaleLowerCase()===name.toLocaleLowerCase())) { setNotice("Primero crea esta categoría en Configuración"); return; }
     if(expenseModal.kind==="group"&&expenseGroups.some(group=>group.name.toLocaleLowerCase()===name.toLocaleLowerCase())) { setNotice("Esta categoría ya tiene un detalle creado"); return; }
@@ -1103,17 +1094,17 @@ export default function Home() {
 
     if(expenseModal.kind==="fixed") {
       if (expenseModalWarehouseId && amount > 0) {
-        const res = recordWarehousePurchaseHistory(expenseModalWarehouseId, amount, activePeriod, { account });
+        const res = recordWarehousePurchaseHistory(expenseModalWarehouseId, amount, activePeriod);
         if (res) trendMsg = ` (${res.trendMsg})`;
       }
-      setFixedExpenses(items=>[{id,name,category,amount,account,requiresConfirmation,completed:false,warehouseItemId:expenseModalWarehouseId||undefined},...items]);
+      setFixedExpenses(items=>[{id,name,category,amount,requiresConfirmation,completed:false,warehouseItemId:expenseModalWarehouseId||undefined},...items]);
     }
     if(expenseModal.kind==="monthly") {
       if (expenseModalWarehouseId && amount > 0) {
-        const res = recordWarehousePurchaseHistory(expenseModalWarehouseId, amount, activePeriod, { account });
+        const res = recordWarehousePurchaseHistory(expenseModalWarehouseId, amount, activePeriod);
         if (res) trendMsg = ` (${res.trendMsg})`;
       }
-      setMonthlyExpenses(items=>[{id,name,category,amount,account,period:activePeriod,requiresConfirmation,completed:false,warehouseItemId:expenseModalWarehouseId||undefined},...items]);
+      setMonthlyExpenses(items=>[{id,name,category,amount,period:activePeriod,requiresConfirmation,completed:false,warehouseItemId:expenseModalWarehouseId||undefined},...items]);
     }
     if(expenseModal.kind==="group") {
       setExpenseGroups(groups=>[{id,name,budget:amount,items:[]},...groups]);
@@ -1127,7 +1118,7 @@ export default function Home() {
         const rowId = subRows[index];
         const wId = subWarehouseIds[rowId];
         if (wId && amounts[index] > 0) {
-          const res = recordWarehousePurchaseHistory(wId, amounts[index], activePeriod, { account });
+          const res = recordWarehousePurchaseHistory(wId, amounts[index], activePeriod);
           if (res) trendMsg = ` (${res.trendMsg})`;
         }
         return {
@@ -1135,7 +1126,6 @@ export default function Home() {
           name: entry,
           category: rowCategories[index] || "Otros",
           amount: amounts[index],
-          account,
           period: activePeriod,
           requiresConfirmation,
           warehouseItemId: wId || undefined,
@@ -1256,7 +1246,6 @@ export default function Home() {
       id,
       title: salaryTitle,
       category: "Sueldo",
-      account: "BCP •• 2847",
       date: "Ahora",
       amount: salary,
       kind: "income",
@@ -1312,7 +1301,7 @@ export default function Home() {
     setNotice(`🔓 Período ${monthNames[m]} ${y} reabierto para edición y ajustes.`);
   }
 
-  function addToWarehouseFromExpense(name: string, category: string, amount: number, account?: string) {
+  function addToWarehouseFromExpense(name: string, category: string, amount: number) {
     const existing = warehouseItems.find(w => w.name.toLowerCase().trim() === name.toLowerCase().trim());
     if (existing) {
       setNotice(`"${name}" ya existe en el Almacén.`);
@@ -1456,7 +1445,6 @@ export default function Home() {
         id: Date.now(),
         title: `Sueldo ${monthNames[toMonth]} ${toYear}`,
         category: "Sueldo",
-        account: "BCP •• 2847",
         date: "01 " + monthNames[toMonth].slice(0, 3),
         amount: salaryAmount,
         kind: "income",
@@ -1472,7 +1460,6 @@ export default function Home() {
         id: Date.now() + 1,
         title: `Saldo inicial remanente de ${monthNames[fromMonth]} ${fromYear}`,
         category: "Otros ingresos",
-        account: "Efectivo",
         date: "01 " + monthNames[toMonth].slice(0, 3),
         amount: remanenteAmount,
         kind: "income",
@@ -1490,7 +1477,6 @@ export default function Home() {
           id: Date.now() + 10 + idx,
           title: `${wItem.name} (${wItem.packageType} - ${wItem.quantityUnit})`,
           category: wItem.category,
-          account: "Efectivo",
           date: "Planificado",
           amount: wItem.estimatedPrice,
           kind: "expense",
@@ -1627,70 +1613,6 @@ export default function Home() {
     1000
   );
 
-  // Cuentas y saldos calculados en tiempo real
-  const accountBalances = useMemo(() => {
-    const knownAccounts = [
-      { name: "BCP •• 2847", short: "BCP", color: "#002a8f", bg: "#e6eeff", icon: "🏛️" },
-      { name: "Yape", short: "Yape", color: "#742284", bg: "#f9ebfc", icon: "📱" },
-      { name: "Interbank •• 9041", short: "Interbank", color: "#009944", bg: "#e6f8ee", icon: "💳" },
-      { name: "Efectivo", short: "Efectivo", color: "#16a34a", bg: "#ecfdf5", icon: "💵" }
-    ];
-
-    const foundNames = Array.from(new Set([
-      ...transactions.map(t => t.account),
-      ...allPeriodTransactions.map(t => t.account),
-      ...monthlyExpenses.map(m => m.account),
-      ...fixedExpenses.map(f => f.account)
-    ].filter((acc): acc is string => Boolean(acc && !knownAccounts.some(k => k.name === acc || k.short === acc)))));
-
-    const otherAccounts = foundNames.map(name => ({
-      name,
-      short: name,
-      color: "#475569",
-      bg: "#f1f5f9",
-      icon: "💼"
-    }));
-
-    const allAccs = [...knownAccounts, ...otherAccounts];
-
-    return allAccs.map(acc => {
-      const matchAcc = (a?: string) => a === acc.name || a === acc.short;
-
-      // 1. Histórico global acumulado
-      const accGlobalTxs = transactions.filter(t => matchAcc(t.account));
-      const globalIn = accGlobalTxs.filter(t => t.kind === "income").reduce((s, t) => s + t.amount, 0);
-      const globalOutTxs = accGlobalTxs.filter(t => t.kind === "expense" && (!t.planned || t.completed)).reduce((s, t) => s + t.amount, 0);
-      
-      const globalOutMonthly = monthlyExpenses
-        .filter(item => matchAcc(item.account) && item.completed && !transactions.some(t => t.kind === "expense" && (t.id === item.transactionId || t.id === item.id)))
-        .reduce((s, item) => s + item.amount, 0);
-
-      const globalOutSub = expenseGroups
-        .flatMap(g => g.items)
-        .filter(item => matchAcc(item.account) && item.completed && !transactions.some(t => t.kind === "expense" && (t.id === item.transactionId || t.id === item.id)))
-        .reduce((s, item) => s + item.amount, 0);
-
-      const globalOutFixed = fixedExpenses
-        .filter(item => matchAcc(item.account) && Object.values(periodFixedStatus).some(m => m[item.id]) && !transactions.some(t => t.kind === "expense" && (t.id === item.transactionId || t.id === item.id)))
-        .reduce((s, item) => s + item.amount, 0);
-
-      const totalOut = globalOutTxs + globalOutMonthly + globalOutSub + globalOutFixed;
-
-      // 2. Movimientos del mes activo
-      const monthTxs = allPeriodTransactions.filter(t => matchAcc(t.account));
-      const monthIn = monthTxs.filter(t => t.kind === "income").reduce((s, t) => s + t.amount, 0);
-      const monthOut = monthTxs.filter(t => t.kind === "expense" && (!t.planned || t.completed)).reduce((s, t) => s + t.amount, 0);
-
-      return {
-        ...acc,
-        balance: globalIn - totalOut,
-        monthIncome: monthIn,
-        monthExpense: monthOut,
-        txCount: monthTxs.length
-      };
-    });
-  }, [transactions, allPeriodTransactions, monthlyExpenses, fixedExpenses, expenseGroups, periodFixedStatus]);
-
   // Resumen del Módulo Almacén
   const warehouseMonthPurchases = useMemo(() => {
     return periodTransactions.filter(t => t.warehouseItemId || t.title.includes("("));
@@ -1740,7 +1662,7 @@ export default function Home() {
       </div>
       {expenseTab!=="groups"&&<article className="card module-card expense-list-card"><div className="card-title"><div><h2>{expenseTab==="fixed"?"Pagos que se repiten cada mes":`Gastos variables de ${monthNames[selectedMonth]}`}</h2><p>{expenseTab==="fixed"?"Alquiler, ahorro, pasajes y servicios recurrentes.":"Solo se muestran los consumos del período seleccionado."}</p></div></div><div className="expense-rows">{(expenseTab==="fixed"?fixedExpenses:monthlyForPeriod).map(item=>{
         const isCompleted = expenseTab==="fixed" ? (periodFixedStatus[activePeriod]?.[item.id] ?? false) : item.completed;
-        return <div className="expense-row" key={item.id}><div className={`expense-kind-icon ${item.category==="Ahorro"?"saving":""}`}>{categoryIcon(item.category,"expense")}</div><div><div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}><strong>{item.name}</strong>{item.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}</div><span>{item.category} · {item.account||"Efectivo"} · {item.requiresConfirmation?(isCompleted?"Realizado":"Pendiente de pago"):"Pronóstico"}</span></div><strong className="expense-value">S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>{item.requiresConfirmation&&<button className={`completion-toggle ${isCompleted?"done":""}`} onClick={()=>toggleDetailedCompletion(expenseTab,item.id)} title={isCompleted?"Realizado: volver a pendiente":"Marcar como realizado"}>{isCompleted?<Check size={15}/>:<Circle size={15}/>}</button>}{expenseTab==="fixed"&&<button className="add-subexpense" onClick={()=>duplicateFixedExpense(item)}>Duplicar</button>}<button className="add-subexpense" onClick={()=>setDetailedEdit({section:expenseTab,id:item.id})}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeDetailedExpense(expenseTab,item.id)}><Trash2 size={15}/></button></div>;
+        return <div className="expense-row" key={item.id}><div className={`expense-kind-icon ${item.category==="Ahorro"?"saving":""}`}>{categoryIcon(item.category,"expense")}</div><div><div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}><strong>{item.name}</strong>{item.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}</div><span>{item.category} · {item.requiresConfirmation?(isCompleted?"Realizado":"Pendiente de pago"):"Pronóstico"}</span></div><strong className="expense-value">S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>{item.requiresConfirmation&&<button className={`completion-toggle ${isCompleted?"done":""}`} onClick={()=>toggleDetailedCompletion(expenseTab,item.id)} title={isCompleted?"Realizado: volver a pendiente":"Marcar como realizado"}>{isCompleted?<Check size={15}/>:<Circle size={15}/>}</button>}{expenseTab==="fixed"&&<button className="add-subexpense" onClick={()=>duplicateFixedExpense(item)}>Duplicar</button>}<button className="add-subexpense" onClick={()=>setDetailedEdit({section:expenseTab,id:item.id})}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeDetailedExpense(expenseTab,item.id)}><Trash2 size={15}/></button></div>;
       })}{(expenseTab==="fixed"?fixedExpenses:monthlyForPeriod).length===0&&<div className="empty-state"><ReceiptText/><strong>Aún no tienes gastos en este período</strong><span>Usa “Agregar gasto” para registrarlo en {monthNames[selectedMonth]}.</span></div>}</div></article>}
       {expenseTab==="groups"&&<section className="expense-groups">{expenseGroups.map(group=>{
         const groupPeriodItems = group.items.filter(item => (item.period ?? initialPeriod) === activePeriod);
@@ -1797,11 +1719,11 @@ export default function Home() {
                   <strong>{item.name}</strong>
                   {item.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}
                 </div>
-                <span>{item.category} · {item.account || "Efectivo"} · {item.requiresConfirmation?(item.completed?"Realizado":"Pendiente"):"Pronóstico"}</span>
+                <span>{item.category} · {item.requiresConfirmation?(item.completed?"Realizado":"Pendiente"):"Pronóstico"}</span>
               </div>
               <strong>S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
               {item.requiresConfirmation&&<button className={`completion-toggle ${item.completed?"done":""}`} onClick={()=>toggleSubExpenseCompletion(group.id,item.id)} title={item.completed?"Realizado: volver a pendiente":"Marcar como realizado"}>{item.completed?<Check size={15}/>:<Circle size={15}/>}</button>}
-              {!item.warehouseItemId&&<button className="add-subexpense" title="Guardar este producto en tu Almacén para futuras compras" onClick={()=>addToWarehouseFromExpense(item.name, item.category || group.name, item.amount, item.account)}><Package size={13}/> Almacén</button>}
+              {!item.warehouseItemId&&<button className="add-subexpense" title="Guardar este producto en tu Almacén para futuras compras" onClick={()=>addToWarehouseFromExpense(item.name, item.category || group.name, item.amount)}><Package size={13}/> Almacén</button>}
               <button className="add-subexpense" onClick={()=>editSubExpense(group.id,item.id)}>Editar</button>
               <button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeSubExpense(group.id,item.id)}><Trash2 size={14}/></button>
             </div>)}
@@ -2044,7 +1966,7 @@ export default function Home() {
               <div className={`tx-icon ${t.kind}`}><PiggyBank size={18}/></div>
               <div className="tx-main">
                 <strong>{t.title}</strong>
-                <span>{t.date} · {t.account}</span>
+                <span>{t.date}</span>
               </div>
               <div className={`tx-amount ${t.kind}`}>
                 {t.kind === "income" ? "+" : "−"} S/ {t.amount.toLocaleString("es-PE", {minimumFractionDigits: 2})}
@@ -2076,68 +1998,6 @@ export default function Home() {
       <article className="card module-card profile-settings"><div className="card-title"><div><h2>Rubros de ingreso</h2><p>Estos nombres aparecen solamente cuando registras un ingreso.</p></div></div><form onSubmit={addIncomeCategory} className="form-row"><label>Nuevo rubro de ingreso<input value={incomeCategoryDraft} onChange={e=>setIncomeCategoryDraft(e.target.value)} placeholder="Ej. Comisión"/></label><div className="modal-actions"><button className="primary" type="submit">Agregar rubro</button></div></form><div className="report-list">{incomeCategories.map(category=><div key={category}><span className="report-name">{category}</span><button className="expense-delete" type="button" onClick={()=>setIncomeCategories(items=>items.filter(item=>item!==category))} aria-label={`Eliminar ${category}`}><Trash2 size={14}/></button></div>)}</div></article>
       <article className="card module-card profile-settings" style={{borderLeft:"4px solid var(--blue)"}}><div className="card-title"><div><h2>Control de Períodos y Cierres</h2><p>Administra los meses cerrados o restablece a Agosto 2026 para repetir pruebas del asistente.</p></div></div><div style={{display:"flex",gap:"12px",alignItems:"center",flexWrap:"wrap",marginTop:"12px"}}><button className="primary" type="button" onClick={resetToAugust}>🔄 Restablecer a Agosto 2026 (Reabrir mes y reiniciar prueba)</button><span style={{fontSize:"12px",color:"var(--muted)"}}>Meses cerrados actualmente: {closedPeriods.length > 0 ? closedPeriods.join(", ") : "Ninguno"}</span></div></article>
     </>;
-    if(active==="Cuentas") {
-      const totalLiquidBalance = accountBalances.reduce((sum, a) => sum + a.balance, 0);
-      const totalMonthInflows = accountBalances.reduce((sum, a) => sum + a.monthIncome, 0);
-      const totalMonthOutflows = accountBalances.reduce((sum, a) => sum + a.monthExpense, 0);
-
-      return <>
-        <ModuleHeading
-          eyebrow="CENTRO DE TESORERÍA"
-          title="Mis Cuentas y Billeteras"
-          text="Visualiza tus saldos acumulados en vivo, ingresos y egresos del mes por entidad bancaria."
-          action={
-            <button className="primary" onClick={openNewMovementModal}>
-              <Plus size={18}/> Nuevo movimiento
-            </button>
-          }
-        />
-
-        <section className="module-stats">
-          <MiniStat label="Saldo Total en Cuentas" value={totalLiquidBalance} tone="blue"/>
-          <MiniStat label={`Ingresos en ${monthNames[selectedMonth]}`} value={totalMonthInflows} tone="green"/>
-          <MiniStat label={`Egresos en ${monthNames[selectedMonth]}`} value={totalMonthOutflows} tone="orange"/>
-        </section>
-
-        <div className="account-cards-grid" style={{marginBottom: "24px"}}>
-          {accountBalances.map(acc => (
-            <div key={acc.name} className="account-card-box" style={{borderLeft: `4px solid ${acc.color}`}}>
-              <div className="account-card-top">
-                <div className="account-logo-badge" style={{background: acc.bg, color: acc.color}}>
-                  {acc.icon}
-                </div>
-                <div className="account-card-meta">
-                  <strong>{acc.name}</strong>
-                  <span>{acc.txCount} movimientos en {monthNames[selectedMonth]}</span>
-                </div>
-              </div>
-
-              <div>
-                <span style={{fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase"}}>Saldo acumulado</span>
-                <div className="account-card-balance" style={{color: acc.balance >= 0 ? "var(--ink)" : "#dc2626", marginTop: "2px"}}>
-                  S/ {acc.balance.toLocaleString("es-PE", {minimumFractionDigits: 2})}
-                </div>
-              </div>
-
-              <div className="account-card-flow">
-                <span>Entradas: <strong className="in">+S/ {acc.monthIncome.toLocaleString("es-PE", {minimumFractionDigits: 2})}</strong></span>
-                <span>Salidas: <strong className="out">−S/ {acc.monthExpense.toLocaleString("es-PE", {minimumFractionDigits: 2})}</strong></span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <article className="card module-card">
-          <div className="card-title">
-            <div>
-              <h2>Movimientos de Tesorería ({monthNames[selectedMonth]} {selectedYear})</h2>
-              <p>Historial de transacciones clasificadas por cuenta de cargo o abono.</p>
-            </div>
-          </div>
-          <TransactionList items={visibleTransactions} onDelete={removeMovement} onToggle={toggleExpenseCompletion} onEdit={setEditingMovement}/>
-        </article>
-      </>;
-    }
     return null;
   }
 
@@ -2397,7 +2257,7 @@ export default function Home() {
 
         {/* 2. Métricas Clave de Saldo y Ahorro */}
         <section className="metrics">
-          <Metric label="Saldo en Cuentas (Real)" value={balance} delta="Dinero confirmado disponible hoy" icon={<WalletCards/>} tone="blue" />
+          <Metric label="Saldo Real Disponible" value={balance} delta="Dinero confirmado disponible hoy" icon={<WalletCards/>} tone="blue" />
           <Metric label="Saldo Proyectado al Cierre" value={projectedBalance} delta="Tras cubrir todos los pendientes" icon={<TrendingUp/>} tone="purple" />
           <Metric label="Gastos Pagados" value={actualTotals.expense} delta={`Faltan S/ ${Math.max(0, totals.expense - actualTotals.expense).toLocaleString("es-PE",{minimumFractionDigits:2})} por confirmar`} icon={<ArrowUpRight/>} tone="orange" />
           <Metric label="Patrimonio de Ahorro" value={totalSavingsAll} delta={`S/ ${totalSavingsGeneral.toLocaleString("es-PE")} libre + S/ ${totalSavingsInGoals.toLocaleString("es-PE")} en metas`} icon={<PiggyBank/>} tone="purple"/>
@@ -2526,7 +2386,7 @@ export default function Home() {
                       <strong>{t.title}</strong>
                       {t.warehouseItemId && <span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}}>📦 Almacén</span>}
                     </div>
-                    <span>{t.category} · {t.account} · {t.planned ? (t.completed ? "Realizado" : "Pendiente") : "Confirmado"}</span>
+                    <span>{t.category} · {t.planned ? (t.completed ? "Realizado" : "Pendiente") : "Confirmado"}</span>
                   </div>
                   <div className="tx-date">{t.date}</div>
                   <div className={`tx-amount ${t.kind}`}>
@@ -2652,47 +2512,11 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        {/* 5. Cuentas Financieras con Saldos Reales */}
-        <section className="accounts">
-          <div className="section-heading">
-            <div>
-              <h2>Mis cuentas y billeteras (Saldos en tiempo real)</h2>
-              <p>Seguimiento del saldo neto y flujo transaccional distribuido en tus cuentas bancarias y efectivo.</p>
-            </div>
-            <button onClick={()=>activateModule("Cuentas")}>
-              <Landmark size={15}/> Administrar cuentas
-            </button>
-          </div>
-
-          <div className="account-cards-grid">
-            {accountBalances.map(acc => (
-              <div className="account-card-box" key={acc.name}>
-                <div className="account-card-top">
-                  <div className="account-logo-badge" style={{background:acc.bg,color:acc.color}}>
-                    {acc.icon}
-                  </div>
-                  <div className="account-card-meta">
-                    <strong>{acc.name}</strong>
-                    <span>{acc.txCount} movimientos en {monthNames[selectedMonth]}</span>
-                  </div>
-                  <div className="account-card-balance" style={{color:acc.balance >= 0 ? "var(--ink)" : "#dc2626"}}>
-                    S/ {acc.balance.toLocaleString("es-PE",{minimumFractionDigits:2})}
-                  </div>
-                </div>
-                <div className="account-card-flow">
-                  <span>Ingresos mes: <strong className="in">+S/ {acc.monthIncome.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong></span>
-                  <span>Gastos mes: <strong className="out">−S/ {acc.monthExpense.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong></span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
         </>}
       </div>
     </main>
 
-    {showModal&&<div className="modal-backdrop" onMouseDown={closeMovementModal}><form className="modal" onSubmit={addTransaction} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nuevo movimiento</h2><p>Registra un ingreso o gasto en {monthNames[selectedMonth]} {selectedYear}.</p></div><button type="button" onClick={closeMovementModal}><X/></button></div><label>Tipo<select name="kind" value={movementKind} onChange={e=>setMovementKind(e.target.value as "income"|"expense")}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>{movementKind==="expense"&&<label>Tipo de gasto<select value={expenseType} onChange={e=>setExpenseType(e.target.value as "fixed"|"monthly"|"group")}><option value="fixed">Gasto fijo — se repite cada mes</option><option value="monthly">Gasto mensual — solo este mes</option><option value="group">Detalle por categoría</option></select></label>}{warehouseItems.length>0&&movementKind==="expense"&&<div className="warehouse-quick-pick"><span className="warehouse-quick-pick-label"><Package size={15}/> 📦 ¿Jalar producto habitual del Almacén?</span><select onChange={e=>{const val=Number(e.target.value);if(!val)return;const found=warehouseItems.find(item=>item.id===val);if(found){setSelectedMovementWarehouseId(val);setMovementTitle(`${found.name} (${found.packageType})`);setMovementAmount(found.estimatedPrice>0?found.estimatedPrice.toString():"");if(categories.includes(found.category)){setMovementCategory(found.category);}setNotice(`✓ "${found.name}" (S/ ${found.estimatedPrice.toFixed(2)}) vinculado con Almacén`);}}} defaultValue=""><option value="" disabled>Selecciona para autocompletar nombre, categoría y precio...</option>{warehouseItems.map(item=><option key={item.id} value={item.id}>{item.name} — {item.packageType} ({item.quantityUnit}) · S/ {item.estimatedPrice.toFixed(2)}</option>)}</select></div>}<label>Descripción<input name="title" required value={movementTitle} onChange={e=>setMovementTitle(e.target.value)} placeholder={movementKind==="income"?"Ej. Sueldo mensual":expenseType==="fixed"?"Ej. Alquiler":"Ej. Almuerzo"}/></label><div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={movementAmount} onChange={e=>setMovementAmount(e.target.value)} placeholder="0.00"/></label><label>Categoría<select name="category" value={movementKind==="income"?incomeCategories.includes(movementCategory)?movementCategory:incomeCategories[0]:movementCategory} onChange={e=>setMovementCategory(e.target.value)}>{(movementKind==="income"?incomeCategories:categories).map(category=><option key={category}>{category}</option>)}</select></label></div>{movementKind==="expense"&&movementCategory==="Ahorro"&&<label>Destino del ahorro<select name="savingDestination" value={String(savingDestination)} onChange={e=>setSavingDestination(e.target.value==="general"?"general":Number(e.target.value))}><option value="general">Ahorro general / indefinido</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}<label>Cuenta<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>{movementKind==="expense"&&movementCategory==="Ahorro"&&<p className="eyebrow">Este egreso se registrará también como aporte al destino que elegiste.</p>}{movementKind==="expense"&&expenseType==="group"&&movementCategory!=="Ahorro"&&<p className="eyebrow">Este movimiento se verá en el historial. Los subgastos se agregan desde Detalle por categoría.</p>}<div className="modal-actions"><button type="button" onClick={closeMovementModal}>Cancelar</button><button className="primary" type="submit">Guardar movimiento</button></div></form></div>}
+    {showModal&&<div className="modal-backdrop" onMouseDown={closeMovementModal}><form className="modal" onSubmit={addTransaction} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nuevo movimiento</h2><p>Registra un ingreso o gasto en {monthNames[selectedMonth]} {selectedYear}.</p></div><button type="button" onClick={closeMovementModal}><X/></button></div><label>Tipo<select name="kind" value={movementKind} onChange={e=>setMovementKind(e.target.value as "income"|"expense")}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>{movementKind==="expense"&&<label>Tipo de gasto<select value={expenseType} onChange={e=>setExpenseType(e.target.value as "fixed"|"monthly"|"group")}><option value="fixed">Gasto fijo — se repite cada mes</option><option value="monthly">Gasto mensual — solo este mes</option><option value="group">Detalle por categoría</option></select></label>}{warehouseItems.length>0&&movementKind==="expense"&&<div className="warehouse-quick-pick"><span className="warehouse-quick-pick-label"><Package size={15}/> 📦 ¿Jalar producto habitual del Almacén?</span><select onChange={e=>{const val=Number(e.target.value);if(!val)return;const found=warehouseItems.find(item=>item.id===val);if(found){setSelectedMovementWarehouseId(val);setMovementTitle(`${found.name} (${found.packageType})`);setMovementAmount(found.estimatedPrice>0?found.estimatedPrice.toString():"");if(categories.includes(found.category)){setMovementCategory(found.category);}setNotice(`✓ "${found.name}" (S/ ${found.estimatedPrice.toFixed(2)}) vinculado con Almacén`);}}} defaultValue=""><option value="" disabled>Selecciona para autocompletar nombre, categoría y precio...</option>{warehouseItems.map(item=><option key={item.id} value={item.id}>{item.name} — {item.packageType} ({item.quantityUnit}) · S/ {item.estimatedPrice.toFixed(2)}</option>)}</select></div>}<label>Descripción<input name="title" required value={movementTitle} onChange={e=>setMovementTitle(e.target.value)} placeholder={movementKind==="income"?"Ej. Sueldo mensual":expenseType==="fixed"?"Ej. Alquiler":"Ej. Almuerzo"}/></label><div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={movementAmount} onChange={e=>setMovementAmount(e.target.value)} placeholder="0.00"/></label><label>Categoría<select name="category" value={movementKind==="income"?incomeCategories.includes(movementCategory)?movementCategory:incomeCategories[0]:movementCategory} onChange={e=>setMovementCategory(e.target.value)}>{(movementKind==="income"?incomeCategories:categories).map(category=><option key={category}>{category}</option>)}</select></label></div>{movementKind==="expense"&&movementCategory==="Ahorro"&&<label>Destino del ahorro<select name="savingDestination" value={String(savingDestination)} onChange={e=>setSavingDestination(e.target.value==="general"?"general":Number(e.target.value))}><option value="general">Ahorro general / indefinido</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}{movementKind==="expense"&&movementCategory==="Ahorro"&&<p className="eyebrow">Este egreso se registrará también como aporte al destino que elegiste.</p>}{movementKind==="expense"&&expenseType==="group"&&movementCategory!=="Ahorro"&&<p className="eyebrow">Este movimiento se verá en el historial. Los subgastos se agregan desde Detalle por categoría.</p>}<div className="modal-actions"><button type="button" onClick={closeMovementModal}>Cancelar</button><button className="primary" type="submit">Guardar movimiento</button></div></form></div>}
     {warehouseModal.open&&<div className="modal-backdrop" onMouseDown={()=>setWarehouseModal({open:false,item:null})}><form className="modal" onSubmit={saveWarehouseItem} onMouseDown={e=>e.stopPropagation()}>
       <div className="modal-title">
         <div>
@@ -2848,28 +2672,15 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="form-row">
-            <label>Registrar en
-              <select
-                value={String(warehouseBuyModal.destination)}
-                onChange={e=>setWarehouseBuyModal(prev=>({...prev, destination: e.target.value === "movement" ? "movement" : Number(e.target.value)}))}
-              >
-                <option value="movement">Movimiento directo del mes ({monthNames[selectedMonth]})</option>
-                {expenseGroups.map(g=><option key={g.id} value={g.id}>Subgasto de {g.name}</option>)}
-              </select>
-            </label>
-            <label>Medio de pago
-              <select
-                value={warehouseBuyModal.account}
-                onChange={e=>setWarehouseBuyModal(prev=>({...prev, account: e.target.value}))}
-              >
-                <option>Efectivo</option>
-                <option>Yape</option>
-                <option>BCP •• 2847</option>
-                <option>Interbank •• 9041</option>
-              </select>
-            </label>
-          </div>
+          <label>Registrar en
+            <select
+              value={String(warehouseBuyModal.destination)}
+              onChange={e=>setWarehouseBuyModal(prev=>({...prev, destination: e.target.value === "movement" ? "movement" : Number(e.target.value)}))}
+            >
+              <option value="movement">Movimiento directo del mes ({monthNames[selectedMonth]})</option>
+              {expenseGroups.map(g=><option key={g.id} value={g.id}>Subgasto de {g.name}</option>)}
+            </select>
+          </label>
 
           <div className="form-row">
             <label>Lugar / Tienda de compra
@@ -2989,13 +2800,13 @@ export default function Home() {
         </div>
       </div>;
     })()}
-    {expenseModal&&<div className="modal-backdrop" onMouseDown={()=>setExpenseModal(null)}><form className="modal" onSubmit={addDetailedExpense} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{expenseModal.kind==="group"?"Activar detalle por categoría":expenseModal.kind==="sub"?"Agregar subgastos":expenseModal.kind==="fixed"?"Nuevo gasto fijo":"Nuevo gasto mensual"}</h2><p>{expenseModal.kind==="group"?"Escribe una categoría existente. Las categorías se administran únicamente en Configuración.":expenseModal.kind==="sub"?"Añade varias compras a esta categoría o jálalas directamente de tu almacén.":"Registra el concepto y su monto."}</p></div><button type="button" onClick={()=>setExpenseModal(null)}><X/></button></div>{expenseModal.kind==="sub"?<><div className="card-title"><div><h2>Detalle de subgastos</h2><p>{subRows.length} fila{subRows.length===1?"":"s"} lista{subRows.length===1?"":"s"} para registrar.</p></div><button type="button" className="add-subexpense" onClick={()=>setSubRows(rows=>[...rows,Date.now()+rows.length])}><Plus size={16}/>Agregar fila</button></div><label>Cuenta para estos subgastos<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>{subRows.map((row,index)=>{const category=subCategories[row]??categories.find(item=>item!=="Ahorro")??categories[0];const currentName=subNames[row]??"";const currentAmount=subAmounts[row]??"";return <div className="subexpense-form-row" key={row} style={{display:"flex",flexDirection:"column",gap:"8px",padding:"12px",background:"#f8fafc",borderRadius:"8px",border:"1px solid #e2e8f0",marginBottom:"12px"}}>{warehouseItems.length>0&&<div style={{display:"flex",alignItems:"center",gap:"8px"}}><span style={{fontSize:"11px",fontWeight:600,color:"var(--muted)",display:"flex",alignItems:"center",gap:"4px"}}><Package size={13}/> ¿Jalar de Almacén?</span><select style={{fontSize:"12px",padding:"4px 8px",flex:1,borderRadius:"6px",border:"1px solid #cbd5e1"}} defaultValue="" onChange={e=>{const val=Number(e.target.value);if(val) selectWarehouseForSubRow(row,val);}}><option value="" disabled>Selecciona producto para autocompletar...</option>{warehouseItems.map(wItem=><option key={wItem.id} value={wItem.id}>{wItem.name} ({wItem.packageType}) · S/ {wItem.estimatedPrice.toFixed(2)}</option>)}</select></div>}<div className="subexpense-inputs-grid"><label style={{margin:0}}>Descripción<input name="name" required autoFocus={index===0} value={currentName} onChange={e=>setSubNames(prev=>({...prev,[row]:e.target.value}))} placeholder="Ej. Mandarina"/></label><label style={{margin:0}}>Categoría<select name="category" value={category} onChange={e=>setSubCategories(items=>({...items,[row]:e.target.value}))}>{categories.map(item=><option key={item}>{item}</option>)}</select></label><label style={{margin:0}}>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={currentAmount} onChange={e=>setSubAmounts(prev=>({...prev,[row]:e.target.value}))} placeholder="0.00"/></label>{subRows.length>1&&<button type="button" className="expense-delete" style={{marginBottom:"6px"}} onClick={()=>setSubRows(rows=>rows.filter(item=>item!==row))}><Trash2 size={15}/></button>}</div>{category==="Ahorro"&&<label style={{margin:0}}>Destino<select value={String(subSavingDestinations[row]??"general")} onChange={e=>setSubSavingDestinations(items=>({...items,[row]:e.target.value==="general"?"general":Number(e.target.value)}))}><option value="general">Ahorro general</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}</div>})}</>:<>{expenseModal.kind!=="group"&&warehouseItems.length>0&&<div className="warehouse-quick-pick" style={{marginBottom:"10px"}}><span className="warehouse-quick-pick-label"><Package size={14}/> 📦 ¿Jalar producto habitual del Almacén?</span><select defaultValue="" onChange={e=>{const val=Number(e.target.value);if(!val)return;const found=warehouseItems.find(item=>item.id===val);if(found){setExpenseModalWarehouseId(val);setExpenseModalTitle(`${found.name} (${found.packageType})`);setExpenseModalAmount(found.estimatedPrice>0?found.estimatedPrice.toString():"");if(categories.includes(found.category)){setExpenseModalCategory(found.category);}setNotice(`✓ "${found.name}" (S/ ${found.estimatedPrice.toFixed(2)}) vinculado con Almacén`);}}}><option value="" disabled>Selecciona para autocompletar...</option>{warehouseItems.map(item=><option key={item.id} value={item.id}>{item.name} — {item.packageType} ({item.quantityUnit}) · S/ {item.estimatedPrice.toFixed(2)}</option>)}</select></div>}<label>{expenseModal.kind==="group"?"Categoría existente":"Descripción"}<input name="name" required autoFocus value={expenseModal.kind==="group"?undefined:(expenseModalTitle||undefined)} onChange={e=>setExpenseModalTitle(e.target.value)} placeholder={expenseModal.kind==="group"?"Ej. Alimentación":expenseModal.kind==="fixed"?"Ej. Alquiler":"Ej. Almuerzo"}/></label>{expenseModal.kind!=="group"&&<label>Categoría<select name="category" value={expenseModalCategory||undefined} onChange={e=>setExpenseModalCategory(e.target.value)}>{categories.map(category=><option key={category}>{category}</option>)}</select></label>}<label>{expenseModal.kind==="group"?"Presupuesto mensual (S/)":"Monto (S/)"}<input name="amount" required type="number" min="0.01" step="0.01" value={expenseModal.kind==="group"?undefined:(expenseModalAmount||undefined)} onChange={e=>setExpenseModalAmount(e.target.value)} placeholder="0.00"/></label>{expenseModal.kind!=="group"&&<label>Cuenta<select name="account"><option>Yape</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label>}</>}<div className="modal-actions"><button type="button" onClick={()=>setExpenseModal(null)}>Cancelar</button><button className="primary" type="submit">{expenseModal.kind==="group"?"Activar detalle":expenseModal.kind==="sub"?`Guardar ${subRows.length} subgasto${subRows.length===1?"":"s"}`:"Guardar gasto"}</button></div></form></div>}
+    {expenseModal&&<div className="modal-backdrop" onMouseDown={()=>setExpenseModal(null)}><form className="modal" onSubmit={addDetailedExpense} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{expenseModal.kind==="group"?"Activar detalle por categoría":expenseModal.kind==="sub"?"Agregar subgastos":expenseModal.kind==="fixed"?"Nuevo gasto fijo":"Nuevo gasto mensual"}</h2><p>{expenseModal.kind==="group"?"Escribe una categoría existente. Las categorías se administran únicamente en Configuración.":expenseModal.kind==="sub"?"Añade varias compras a esta categoría o jálalas directamente de tu almacén.":"Registra el concepto y su monto."}</p></div><button type="button" onClick={()=>setExpenseModal(null)}><X/></button></div>{expenseModal.kind==="sub"?<><div className="card-title"><div><h2>Detalle de subgastos</h2><p>{subRows.length} fila{subRows.length===1?"":"s"} lista{subRows.length===1?"":"s"} para registrar.</p></div><button type="button" className="add-subexpense" onClick={()=>setSubRows(rows=>[...rows,Date.now()+rows.length])}><Plus size={16}/>Agregar fila</button></div>{subRows.map((row,index)=>{const category=subCategories[row]??categories.find(item=>item!=="Ahorro")??categories[0];const currentName=subNames[row]??"";const currentAmount=subAmounts[row]??"";return <div className="subexpense-form-row" key={row} style={{display:"flex",flexDirection:"column",gap:"8px",padding:"12px",background:"#f8fafc",borderRadius:"8px",border:"1px solid #e2e8f0",marginBottom:"12px"}}>{warehouseItems.length>0&&<div style={{display:"flex",alignItems:"center",gap:"8px"}}><span style={{fontSize:"11px",fontWeight:600,color:"var(--muted)",display:"flex",alignItems:"center",gap:"4px"}}><Package size={13}/> ¿Jalar de Almacén?</span><select style={{fontSize:"12px",padding:"4px 8px",flex:1,borderRadius:"6px",border:"1px solid #cbd5e1"}} defaultValue="" onChange={e=>{const val=Number(e.target.value);if(val) selectWarehouseForSubRow(row,val);}}><option value="" disabled>Selecciona producto para autocompletar...</option>{warehouseItems.map(wItem=><option key={wItem.id} value={wItem.id}>{wItem.name} ({wItem.packageType}) · S/ {wItem.estimatedPrice.toFixed(2)}</option>)}</select></div>}<div className="subexpense-inputs-grid"><label style={{margin:0}}>Descripción<input name="name" required autoFocus={index===0} value={currentName} onChange={e=>setSubNames(prev=>({...prev,[row]:e.target.value}))} placeholder="Ej. Mandarina"/></label><label style={{margin:0}}>Categoría<select name="category" value={category} onChange={e=>setSubCategories(items=>({...items,[row]:e.target.value}))}>{categories.map(item=><option key={item}>{item}</option>)}</select></label><label style={{margin:0}}>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={currentAmount} onChange={e=>setSubAmounts(prev=>({...prev,[row]:e.target.value}))} placeholder="0.00"/></label>{subRows.length>1&&<button type="button" className="expense-delete" style={{marginBottom:"6px"}} onClick={()=>setSubRows(rows=>rows.filter(item=>item!==row))}><Trash2 size={15}/></button>}</div>{category==="Ahorro"&&<label style={{margin:0}}>Destino<select value={String(subSavingDestinations[row]??"general")} onChange={e=>setSubSavingDestinations(items=>({...items,[row]:e.target.value==="general"?"general":Number(e.target.value)}))}><option value="general">Ahorro general</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}</div>})}</>:<>{expenseModal.kind!=="group"&&warehouseItems.length>0&&<div className="warehouse-quick-pick" style={{marginBottom:"10px"}}><span className="warehouse-quick-pick-label"><Package size={14}/> 📦 ¿Jalar producto habitual del Almacén?</span><select defaultValue="" onChange={e=>{const val=Number(e.target.value);if(!val)return;const found=warehouseItems.find(item=>item.id===val);if(found){setExpenseModalWarehouseId(val);setExpenseModalTitle(`${found.name} (${found.packageType})`);setExpenseModalAmount(found.estimatedPrice>0?found.estimatedPrice.toString():"");if(categories.includes(found.category)){setExpenseModalCategory(found.category);}setNotice(`✓ "${found.name}" (S/ ${found.estimatedPrice.toFixed(2)}) vinculado con Almacén`);}}}><option value="" disabled>Selecciona para autocompletar...</option>{warehouseItems.map(item=><option key={item.id} value={item.id}>{item.name} — {item.packageType} ({item.quantityUnit}) · S/ {item.estimatedPrice.toFixed(2)}</option>)}</select></div>}<label>{expenseModal.kind==="group"?"Categoría existente":"Descripción"}<input name="name" required autoFocus value={expenseModal.kind==="group"?undefined:(expenseModalTitle||undefined)} onChange={e=>setExpenseModalTitle(e.target.value)} placeholder={expenseModal.kind==="group"?"Ej. Alimentación":expenseModal.kind==="fixed"?"Ej. Alquiler":"Ej. Almuerzo"}/></label>{expenseModal.kind!=="group"&&<label>Categoría<select name="category" value={expenseModalCategory||undefined} onChange={e=>setExpenseModalCategory(e.target.value)}>{categories.map(category=><option key={category}>{category}</option>)}</select></label>}<label>{expenseModal.kind==="group"?"Presupuesto mensual (S/)":"Monto (S/)"}<input name="amount" required type="number" min="0.01" step="0.01" value={expenseModal.kind==="group"?undefined:(expenseModalAmount||undefined)} onChange={e=>setExpenseModalAmount(e.target.value)} placeholder="0.00"/></label></>}<div className="modal-actions"><button type="button" onClick={()=>setExpenseModal(null)}>Cancelar</button><button className="primary" type="submit">{expenseModal.kind==="group"?"Activar detalle":expenseModal.kind==="sub"?`Guardar ${subRows.length} subgasto${subRows.length===1?"":"s"}`:"Guardar gasto"}</button></div></form></div>}
     {expenseEdit&&(()=>{const group=expenseGroups.find(item=>item.id===expenseEdit.groupId);const item=expenseEdit.kind==="sub"?group?.items.find(entry=>entry.id===expenseEdit.itemId):undefined;if(!group||(expenseEdit.kind==="sub"&&!item))return null;const isGroup=expenseEdit.kind==="group";const groupPeriodItems=group.items.filter(entry=>(entry.period??initialPeriod)===activePeriod);const groupPeriodUsed=groupPeriodItems.reduce((sum,entry)=>sum+entry.amount,0);return <div className="modal-backdrop" onMouseDown={()=>setExpenseEdit(null)}><form className="modal" onSubmit={saveExpenseEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{isGroup?"Editar rubro":"Editar subgasto"}</h2><p>{isGroup?"Actualiza el nombre y el presupuesto. Los subgastos se conservan.":`Dentro del rubro ${group.name}.`}</p></div><button type="button" onClick={()=>setExpenseEdit(null)}><X/></button></div><label>{isGroup?"Nombre del rubro":"Descripción"}<input name="name" required autoFocus defaultValue={isGroup?group.name:item!.name}/></label>{!isGroup&&<label>Categoría<select name="category" defaultValue={item!.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label>}<label>{isGroup?"Presupuesto mensual (S/)":"Monto (S/)"}<input name="amount" required type="number" min="0" step="0.01" defaultValue={isGroup?group.budget:item!.amount}/></label><div className="module-callout"><ReceiptText/><div><strong>{isGroup?`${groupPeriodItems.length} subgastos en ${monthNames[selectedMonth]}`:`Periodo: ${monthNames[selectedMonth]} ${selectedYear}`}</strong><span>{isGroup?`Total usado en ${monthNames[selectedMonth]}: S/ ${groupPeriodUsed.toLocaleString("es-PE",{minimumFractionDigits:2})}`:`Valor actual: S/ ${item!.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</span></div></div><div className="modal-actions"><button type="button" onClick={()=>setExpenseEdit(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
     {detailedEdit&&(()=>{const item=(detailedEdit.section==="fixed"?fixedExpenses:monthlyExpenses).find(entry=>entry.id===detailedEdit.id);if(!item)return null;return <div className="modal-backdrop" onMouseDown={()=>setDetailedEdit(null)}><form className="modal" onSubmit={saveDetailedEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Editar {detailedEdit.section==="fixed"?"gasto fijo":"gasto mensual"}</h2><p>Actualiza los datos sin perder el registro.</p></div><button type="button" onClick={()=>setDetailedEdit(null)}><X/></button></div><label>Descripción<input name="name" required autoFocus defaultValue={item.name}/></label><label>Categoría<select name="category" defaultValue={item.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><label>Monto (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={item.amount}/></label><div className="modal-actions"><button type="button" onClick={()=>setDetailedEdit(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
     {showSavingGoalModal&&<div className="modal-backdrop" onMouseDown={()=>setShowSavingGoalModal(false)}><form className="modal" onSubmit={createSavingsGoal} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nueva meta de ahorro</h2><p>Define para qué ahorrarás y cuánto necesitas reunir.</p></div><button type="button" onClick={()=>setShowSavingGoalModal(false)}><X/></button></div><label>Nombre de la meta<input name="name" required autoFocus placeholder="Ej. Laptop"/></label><div className="form-row"><label>Monto objetivo (S/)<input name="target" required type="number" min="0.01" step="0.01" placeholder="3000"/></label><label>Aporte inicial (S/)<input name="amount" type="number" min="0" step="0.01" defaultValue="0"/></label></div><div className="modal-actions"><button type="button" onClick={()=>setShowSavingGoalModal(false)}>Cancelar</button><button className="primary" type="submit">Crear meta</button></div></form></div>}
-    {savingContributionTarget!==null&&<div className="modal-backdrop" onMouseDown={()=>setSavingContributionTarget(null)}><form className="modal" onSubmit={contributeToSaving} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Movimiento de ahorro</h2><p>{savingContributionTarget==="general"?"Ahorro general sin destino específico.":`Meta: ${savingsGoals.find(goal=>goal.id===savingContributionTarget)?.name??""}`}</p></div><button type="button" onClick={()=>setSavingContributionTarget(null)}><X/></button></div><label>Operación<select name="operation"><option value="add">Agregar aporte</option><option value="withdraw">Retirar dinero</option></select></label><label>Monto (S/)<input name="amount" required autoFocus type="number" min="0.01" step="0.01" placeholder="0.00"/></label><label>Cuenta de origen / destino<select name="account"><option value="BCP •• 2847">BCP •• 2847</option><option value="Yape">Yape</option><option value="Interbank •• 9041">Interbank •• 9041</option><option value="Efectivo">Efectivo</option></select></label><div className="modal-actions"><button type="button" onClick={()=>setSavingContributionTarget(null)}>Cancelar</button><button className="primary" type="submit">Guardar movimiento</button></div></form></div>}
+    {savingContributionTarget!==null&&<div className="modal-backdrop" onMouseDown={()=>setSavingContributionTarget(null)}><form className="modal" onSubmit={contributeToSaving} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Movimiento de ahorro</h2><p>{savingContributionTarget==="general"?"Ahorro general sin destino específico.":`Meta: ${savingsGoals.find(goal=>goal.id===savingContributionTarget)?.name??""}`}</p></div><button type="button" onClick={()=>setSavingContributionTarget(null)}><X/></button></div><label>Operación<select name="operation"><option value="add">Agregar aporte</option><option value="withdraw">Retirar dinero</option></select></label><label>Monto (S/)<input name="amount" required autoFocus type="number" min="0.01" step="0.01" placeholder="0.00"/></label><div className="modal-actions"><button type="button" onClick={()=>setSavingContributionTarget(null)}>Cancelar</button><button className="primary" type="submit">Guardar movimiento</button></div></form></div>}
     {showBudgetModal&&<div className="modal-backdrop" onMouseDown={()=>setShowBudgetModal(false)}><form className="modal" onSubmit={addBudget} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nuevo presupuesto</h2><p>Define el límite mensual de un rubro.</p></div><button type="button" onClick={()=>setShowBudgetModal(false)}><X/></button></div><label>Rubro<input name="name" required autoFocus placeholder="Ej. Alimentación"/></label><label>Límite mensual (S/)<input name="limit" required type="number" min="0.01" step="0.01" placeholder="0.00"/></label><label>Color<select name="color"><option value="purple">Morado</option><option value="blue">Azul</option><option value="orange">Naranja</option><option value="teal">Verde</option></select></label><div className="modal-actions"><button type="button" onClick={()=>setShowBudgetModal(false)}>Cancelar</button><button className="primary" type="submit">Crear presupuesto</button></div></form></div>}
-    {editingMovement&&<div className="modal-backdrop" onMouseDown={()=>setEditingMovement(null)}><form className="modal" onSubmit={saveMovementEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Editar movimiento</h2><p>Actualiza este registro sin crear uno nuevo.</p></div><button type="button" onClick={()=>setEditingMovement(null)}><X/></button></div><label>Descripción<input name="title" required autoFocus defaultValue={editingMovement.title}/></label><div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" defaultValue={editingMovement.amount}/></label><label>Categoría<select name="category" defaultValue={editingMovement.category}>{(editingMovement.kind==="income"?incomeCategories:categories).map(category=><option key={category}>{category}</option>)}</select></label></div><label>Cuenta<select name="account" defaultValue={editingMovement.account}><option>Yape</option><option>BCP</option><option>BCP •• 2847</option><option>Interbank •• 9041</option><option>Efectivo</option></select></label><div className="modal-actions"><button type="button" onClick={()=>setEditingMovement(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>}
+    {editingMovement&&<div className="modal-backdrop" onMouseDown={()=>setEditingMovement(null)}><form className="modal" onSubmit={saveMovementEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Editar movimiento</h2><p>Actualiza este registro sin crear uno nuevo.</p></div><button type="button" onClick={()=>setEditingMovement(null)}><X/></button></div><label>Descripción<input name="title" required autoFocus defaultValue={editingMovement.title}/></label><div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" defaultValue={editingMovement.amount}/></label><label>Categoría<select name="category" defaultValue={editingMovement.category}>{(editingMovement.kind==="income"?incomeCategories:categories).map(category=><option key={category}>{category}</option>)}</select></label></div><div className="modal-actions"><button type="button" onClick={()=>setEditingMovement(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>}
     {deleteConfirmation&&<div className="modal-backdrop" onMouseDown={()=>setDeleteConfirmation(null)}><section className="modal delete-confirmation" role="dialog" aria-modal="true" aria-labelledby="delete-title" onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><p className="eyebrow">CONFIRMACIÓN</p><h2 id="delete-title">¿Eliminar registro?</h2><p>{deleteConfirmation.message}</p></div><button type="button" aria-label="Cerrar" onClick={()=>setDeleteConfirmation(null)}><X/></button></div><div className="modal-actions"><button type="button" onClick={()=>setDeleteConfirmation(null)}>Cancelar</button><button className="danger-action" type="button" onClick={()=>{const action=deleteConfirmation.onConfirm;setDeleteConfirmation(null);action();}}>Eliminar</button></div></section></div>}
 
     {closeMonthModal&&closeMonthModal.open&&<div className="modal-backdrop" onMouseDown={()=>setCloseMonthModal(null)}>

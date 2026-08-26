@@ -186,7 +186,6 @@ header{height:82px;background:rgba(255,255,255,0.95);backdrop-filter:blur(16px);
 .report-summary span{font-size:11px;color:var(--muted);margin-top:14px}
 .report-summary strong{font-size:38px;color:var(--green);margin-top:6px}
 .report-summary p{font-size:10px;line-height:1.5;color:var(--muted)}
-.module-accounts{margin-top:4px}
 .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,0.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9999;display:grid;place-items:center;padding:20px;overflow-y:auto}
 .modal{background:#fff;width:min(520px,100%);border-radius:16px;padding:24px;box-shadow:0 25px 60px rgba(15,23,42,0.28);border:1px solid #e2e8f0;position:relative;max-height:90vh;overflow-y:auto;margin:auto}
 .modal-title{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px}
@@ -447,20 +446,6 @@ header{height:82px;background:rgba(255,255,255,0.95);backdrop-filter:blur(16px);
 
 .category-row-bar{height:5px;background:#f1f5f9;border-radius:4px;overflow:hidden;margin-top:4px;width:100%}
 .category-row-bar-fill{height:100%;border-radius:4px}
-
-.account-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:14px}
-.account-card-box{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;transition:all .2s ease;box-shadow:0 2px 8px rgba(15,23,42,0.02)}
-.account-card-box:hover{border-color:#cbd5e1;box-shadow:0 8px 22px rgba(15,23,42,0.06);transform:translateY(-2px)}
-.account-card-top{display:flex;align-items:center;gap:12px}
-.account-logo-badge{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:18px;flex-shrink:0}
-.account-card-meta{flex:1;min-width:0}
-.account-card-meta strong{display:block;font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.account-card-meta span{font-size:11px;color:var(--muted)}
-.account-card-balance{font-size:18px;font-weight:800;color:var(--ink);letter-spacing:-0.3px}
-.account-card-flow{display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid #f1f5f9;font-size:11px}
-.account-card-flow span{color:var(--muted)}
-.account-card-flow strong.in{color:#16a34a}
-.account-card-flow strong.out{color:#ea580c}
 
 .warehouse-widget-card{background:linear-gradient(145deg,#f0f9ff 0%,#e0f2fe 100%);border:1px solid #bae6fd;border-radius:16px;padding:22px;margin:20px 0}
 .warehouse-widget-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
