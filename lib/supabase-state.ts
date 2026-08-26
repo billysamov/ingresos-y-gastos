@@ -116,6 +116,26 @@ export async function saveRelationalFinanceState(data: FinanceData) {
   const remoteGroups = await request(`expense_groups?profile_id=eq.${profileId}&select=id`) as JsonRow[];
   const activeGroupIds = new Set(data.expenseGroups.map(group => String(group.dbId ?? remoteIds.get(`expense_groups:${group.id}`) ?? "")));
   await Promise.all(remoteGroups.filter(group => !activeGroupIds.has(String(group.id))).map(group => request(`expense_groups?id=eq.${group.id}`, { method: "DELETE", headers: { Prefer: "return=minimal" } })));
+
+  const validGroupIds = remoteGroups.map(g => String(g.id));
+  if (validGroupIds.length > 0) {
+    const remoteItems = await request(`expense_items?expense_group_id=in.(${validGroupIds.join(",")})&select=id`) as JsonRow[];
+    const activeItemIds = new Set(data.expenseGroups.flatMap(g => (Array.isArray(g.items) ? g.items : []).map((item: JsonRow) => String(item.dbId ?? remoteIds.get(`expense_items:${item.id}`) ?? ""))));
+    await Promise.all(remoteItems.filter(item => !activeItemIds.has(String(item.id))).map(item => request(`expense_items?id=eq.${item.id}`, { method: "DELETE", headers: { Prefer: "return=minimal" } })));
+  }
+
+  const remoteFixed = await request(`fixed_expenses?profile_id=eq.${profileId}&select=id`) as JsonRow[];
+  const activeFixedIds = new Set(data.fixedExpenses.map(item => String(item.dbId ?? remoteIds.get(`fixed_expenses:${item.id}`) ?? "")));
+  await Promise.all(remoteFixed.filter(item => !activeFixedIds.has(String(item.id))).map(item => request(`fixed_expenses?id=eq.${item.id}`, { method: "DELETE", headers: { Prefer: "return=minimal" } })));
+
+  const remoteMonthly = await request(`monthly_expenses?profile_id=eq.${profileId}&select=id`) as JsonRow[];
+  const activeMonthlyIds = new Set(data.monthlyExpenses.map(item => String(item.dbId ?? remoteIds.get(`monthly_expenses:${item.id}`) ?? "")));
+  await Promise.all(remoteMonthly.filter(item => !activeMonthlyIds.has(String(item.id))).map(item => request(`monthly_expenses?id=eq.${item.id}`, { method: "DELETE", headers: { Prefer: "return=minimal" } })));
+
+  const remoteTx = await request(`transactions?profile_id=eq.${profileId}&select=id`) as JsonRow[];
+  const activeTxIds = new Set(data.transactions.map(item => String(item.dbId ?? remoteIds.get(`transactions:${item.id}`) ?? "")));
+  await Promise.all(remoteTx.filter(item => !activeTxIds.has(String(item.id))).map(item => request(`transactions?id=eq.${item.id}`, { method: "DELETE", headers: { Prefer: "return=minimal" } })));
+
   const allCategories = [...data.categories.map(name => ({ name, category_type: "expense" })), ...data.incomeCategories.map(name => ({ name, category_type: "income" }))];
   const remoteCategories = await request(`categories?profile_id=eq.${profileId}&select=id,name,category_type`) as JsonRow[];
   await Promise.all(allCategories.filter(item => !remoteCategories.some(row => row.name === item.name && row.category_type === item.category_type)).map(item => request("categories", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ profile_id: profileId, ...item }) })));
@@ -125,8 +145,15 @@ export async function saveRelationalFinanceState(data: FinanceData) {
   else await request("savings_goals", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ profile_id: profileId, name: "Ahorro personal", target_amount: Math.max(1, data.savings), current_amount: data.savings, is_active: true }) });
 }
 
-/** Elimina únicamente el registro elegido. Los subgastos se eliminan en cascada con su grupo. */
-export async function deleteRelationalRecord(table: "transactions"|"fixed_expenses"|"monthly_expenses"|"expense_groups"|"expense_items"|"savings_goals", dbId?: string) {
-  if (!dbId) return;
-  await request(`${table}?id=eq.${dbId}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+/** Elimina únicamente el registro elegido usando dbId o la clave local en memoria. */
+export async function deleteRelationalRecord(table: "transactions"|"fixed_expenses"|"monthly_expenses"|"expense_groups"|"expense_items"|"savings_goals", dbId?: string, localId?: number | string) {
+  const memoryKey = localId === undefined ? undefined : `${table}:${localId}`;
+  const remoteId = dbId ?? (memoryKey ? remoteIds.get(memoryKey) : undefined);
+  if (!remoteId) return;
+  try {
+    await request(`${table}?id=eq.${remoteId}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+  } catch (err) {
+    console.warn(`Error al eliminar ${table} con id=${remoteId}`, err);
+  }
+  if (memoryKey) remoteIds.delete(memoryKey);
 }
