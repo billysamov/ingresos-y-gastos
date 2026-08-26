@@ -606,41 +606,51 @@ export default function Home() {
   const currentSubTotal=activeSubGroup?.items.reduce((sum,item)=>sum+item.amount,0)??0;
   const draftSubTotal=subRows.reduce((sum,row)=>sum+(Number(subAmounts[row])||0),0);
   const subAmountLimitExceeded=Boolean(activeSubGroup&&currentSubTotal+draftSubTotal>activeSubGroup.budget);
-  const periodTransactions = useMemo(() => transactions.filter(t=>(t.period??initialPeriod)===activePeriod),[transactions,activePeriod]);
-  const expenseEntriesForPeriod=useMemo(()=>[
-    ...fixedExpenses.map(item=>({item,source:"fixed" as const})),
-    ...monthlyExpenses.filter(item=>(item.period??initialPeriod)===activePeriod).map(item=>({item,source:"monthly" as const})),
-    ...expenseGroups.map(group=>({item:{id:group.id,name:group.name,category:group.name,amount:group.budget,period:activePeriod} as ExpenseEntry,source:"category" as const})),
-  ].filter(({item})=>!transactions.some(transaction=>transaction.kind==="expense"&&(transaction.id===item.transactionId||transaction.id===item.id))),[fixedExpenses,monthlyExpenses,expenseGroups,transactions,activePeriod]);
-  const extraExpenseForPeriod=expenseEntriesForPeriod.reduce((sum,{item})=>sum+item.amount,0);
+  const isTrackingPeriod = activePeriod >= initialPeriod;
+  const periodTransactions = useMemo(() => transactions.filter(t => (t.period ?? initialPeriod) === activePeriod), [transactions, activePeriod]);
+  const expenseEntriesForPeriod = useMemo(() => [
+    ...(isTrackingPeriod ? fixedExpenses.map(item => ({ item, source: "fixed" as const })) : []),
+    ...monthlyExpenses.filter(item => (item.period ?? initialPeriod) === activePeriod).map(item => ({ item, source: "monthly" as const })),
+    ...expenseGroups.flatMap(group =>
+      group.items
+        .filter(item => (item.period ?? initialPeriod) === activePeriod)
+        .map(item => ({ item: { ...item, category: item.category || group.name }, source: "category" as const }))
+    ),
+  ].filter(({ item }) => !transactions.some(transaction => transaction.kind === "expense" && (transaction.id === item.transactionId || transaction.id === item.id))),
+  [fixedExpenses, monthlyExpenses, expenseGroups, transactions, activePeriod, isTrackingPeriod, initialPeriod]);
+  const extraExpenseForPeriod = expenseEntriesForPeriod.reduce((sum, { item }) => sum + item.amount, 0);
   // Los gastos creados desde "Gastos" no siempre nacen como una transacción.
   // Los representamos en el historial sin duplicar los que ya tienen movimiento.
-  const detailedExpenseTransactions=useMemo<Tx[]>(()=>expenseEntriesForPeriod.map(entry=>({
-    id:-Math.abs(entry.item.id), title:entry.item.name, category:entry.item.category,
-    account:entry.item.account??"Efectivo", date:"Gasto registrado", amount:entry.item.amount,
-    kind:"expense", period:activePeriod, expenseSource:entry.source, sourceId:entry.item.id,
-    planned:true, requiresConfirmation:entry.item.requiresConfirmation, completed:entry.item.completed,
-  })),[expenseEntriesForPeriod,activePeriod]);
-  const allPeriodTransactions=useMemo(()=>[...periodTransactions,...detailedExpenseTransactions],[periodTransactions,detailedExpenseTransactions]);
-  const extraExpenseAccumulated=useMemo(()=>[
-    ...fixedExpenses,...monthlyExpenses,...expenseGroups.map(group=>({id:group.id,name:group.name,category:group.name,amount:group.budget,period:initialPeriod} as ExpenseEntry)),
-  ].filter(item=>!transactions.some(transaction=>transaction.kind==="expense"&&(transaction.id===item.transactionId||transaction.id===item.id))).reduce((sum,item)=>sum+item.amount,0),[fixedExpenses,monthlyExpenses,expenseGroups,transactions]);
+  const detailedExpenseTransactions = useMemo<Tx[]>(() => expenseEntriesForPeriod.map(entry => ({
+    id: -Math.abs(entry.item.id), title: entry.item.name, category: entry.item.category,
+    account: entry.item.account ?? "Efectivo", date: "Gasto registrado", amount: entry.item.amount,
+    kind: "expense", period: activePeriod, expenseSource: entry.source, sourceId: entry.item.id,
+    planned: true, requiresConfirmation: entry.item.requiresConfirmation, completed: entry.item.completed,
+    warehouseItemId: entry.item.warehouseItemId
+  })), [expenseEntriesForPeriod, activePeriod]);
+  const allPeriodTransactions = useMemo(() => [...periodTransactions, ...detailedExpenseTransactions], [periodTransactions, detailedExpenseTransactions]);
+  const extraExpenseAccumulated = useMemo(() => [
+    ...fixedExpenses,
+    ...monthlyExpenses,
+    ...expenseGroups.flatMap(group => group.items),
+  ].filter(item => item.completed && !transactions.some(transaction => transaction.kind === "expense" && (transaction.id === item.transactionId || transaction.id === item.id))).reduce((sum, item) => sum + item.amount, 0),
+  [fixedExpenses, monthlyExpenses, expenseGroups, transactions]);
   const totals = useMemo(() => ({
-    income: periodTransactions.filter(t=>t.kind==="income").reduce((a,b)=>a+b.amount,0),
-    expense: periodTransactions.filter(t=>t.kind==="expense").reduce((a,b)=>a+b.amount,0)+extraExpenseForPeriod,
-  }), [periodTransactions,extraExpenseForPeriod]);
+    income: periodTransactions.filter(t => t.kind === "income").reduce((a, b) => a + b.amount, 0),
+    expense: periodTransactions.filter(t => t.kind === "expense").reduce((a, b) => a + b.amount, 0) + extraExpenseForPeriod,
+  }), [periodTransactions, extraExpenseForPeriod]);
   const actualTotals = useMemo(() => ({
-    income: periodTransactions.filter(t=>t.kind==="income").reduce((a,b)=>a+b.amount,0),
-    expense: periodTransactions.filter(t=>t.kind==="expense"&&(!t.planned||t.completed)).reduce((a,b)=>a+b.amount,0)+detailedExpenseTransactions.filter(t=>t.completed).reduce((a,b)=>a+b.amount,0),
-  }), [periodTransactions,detailedExpenseTransactions]);
+    income: periodTransactions.filter(t => t.kind === "income").reduce((a, b) => a + b.amount, 0),
+    expense: periodTransactions.filter(t => t.kind === "expense" && (!t.planned || t.completed)).reduce((a, b) => a + b.amount, 0) + detailedExpenseTransactions.filter(t => t.completed).reduce((a, b) => a + b.amount, 0),
+  }), [periodTransactions, detailedExpenseTransactions]);
 
   const sueldoTx = useMemo(() => transactions.find(t => t.kind === "income" && (t.category === "Sueldo" || t.title.toLowerCase().includes("sueldo"))), [transactions]);
   const monthlySalary = (profile.monthlySalary && profile.monthlySalary > 0) ? profile.monthlySalary : (sueldoTx?.amount || 0);
   const hasSalaryInPeriod = periodTransactions.some(t => t.kind === "income" && (t.category === "Sueldo" || t.title.toLowerCase().includes("sueldo")));
   const accumulatedTotals = useMemo(() => ({
-    income: transactions.filter(t=>t.kind==="income").reduce((a,b)=>a+b.amount,0),
-    expense: transactions.filter(t=>t.kind==="expense"&&(!t.planned||t.completed)).reduce((a,b)=>a+b.amount,0)+[...fixedExpenses,...monthlyExpenses,...expenseGroups.flatMap(group=>group.items)].filter(item=>item.completed&&!transactions.some(transaction=>transaction.kind==="expense"&&(transaction.id===item.transactionId||transaction.id===item.id))).reduce((sum,item)=>sum+item.amount,0),
-  }), [transactions,fixedExpenses,monthlyExpenses,expenseGroups]);
+    income: transactions.filter(t => t.kind === "income").reduce((a, b) => a + b.amount, 0),
+    expense: transactions.filter(t => t.kind === "expense" && (!t.planned || t.completed)).reduce((a, b) => a + b.amount, 0) + extraExpenseAccumulated,
+  }), [transactions, extraExpenseAccumulated]);
   const balance = accumulatedTotals.income - accumulatedTotals.expense;
   const projectedBalance = totals.income - totals.expense;
   const chartMax = Math.max(totals.income, totals.expense, 1000);
@@ -1444,16 +1454,10 @@ export default function Home() {
     setIncomeCategories(items=>[...items,name]);setIncomeCategoryDraft("");setNotice("Rubro de ingreso agregado correctamente");
   }
 
-  const categoryExpenseItems=[
-    ...periodTransactions.filter(t=>t.kind==="expense"),
-    ...expenseEntriesForPeriod.filter(entry=>entry.source!=="category").map(({item})=>item),
-    ...expenseGroups.flatMap(group=>{
-      const groupPeriodItems = group.items.filter(item => (item.period ?? initialPeriod) === activePeriod);
-      const detailed=groupPeriodItems.reduce((sum,item)=>sum+item.amount,0);
-      const remaining=Math.max(0,group.budget-detailed);
-      return [...groupPeriodItems,...(remaining?[{id:-group.id,name:`Pendiente de ${group.name}`,category:group.name,amount:remaining,period:activePeriod}]:[])];
-    }),
-  ];
+  const categoryExpenseItems = useMemo(() => [
+    ...periodTransactions.filter(t => t.kind === "expense"),
+    ...expenseEntriesForPeriod.map(({ item }) => item),
+  ], [periodTransactions, expenseEntriesForPeriod]);
   const expenseByCategory = categoryExpenseItems.reduce<Record<string,number>>((result,item)=>{
     result[item.category]=(result[item.category]||0)+item.amount;
     return result;
@@ -1463,13 +1467,13 @@ export default function Home() {
   const dashboardCategoryTotal=dashboardCategories.reduce((sum,[,value])=>sum+value,0);
   const dashboardDonut=dashboardCategoryTotal?`conic-gradient(${dashboardCategories.filter(([,value])=>value>0).map(([name,value],index)=>`${dashboardPalette[index%dashboardPalette.length]} ${dashboardCategories.filter(([,amount])=>amount>0).slice(0,index).reduce((sum,[,amount])=>sum+amount/dashboardCategoryTotal*100,0)}% ${dashboardCategories.filter(([,amount])=>amount>0).slice(0,index+1).reduce((sum,[,amount])=>sum+amount/dashboardCategoryTotal*100,0)}%`).join(",")})`:"conic-gradient(#edf0f5 0 100%)";
   function inspectCategory(category:string) { setSearch(category); activateModule("Movimientos"); }
-  const fixedTotal=fixedExpenses.reduce((sum,item)=>sum+item.amount,0);
+  const fixedTotal = isTrackingPeriod ? fixedExpenses.reduce((sum, item) => sum + item.amount, 0) : 0;
   const monthlyForPeriod=monthlyExpenses.filter(item=>(item.period??initialPeriod)===activePeriod);
   const monthlyTotal=monthlyForPeriod.reduce((sum,item)=>sum+item.amount,0);
   const groupedTotal=expenseGroups.reduce((sum,group)=>sum+group.budget,0);
 
   const netMonthBalance = totals.income - totals.expense;
-  const extraIncome = Math.max(0, totals.income - monthlySalary);
+  const extraIncome = Math.max(0, totals.income - (hasSalaryInPeriod ? (periodSalaryTx?.amount ?? monthlySalary) : 0));
 
   // Métricas avanzadas para el Resumen Ejecutivo
   const totalSavingsGeneral = savings;
@@ -1487,8 +1491,8 @@ export default function Home() {
     ? now.getDate()
     : (selectedYear < now.getFullYear() || (selectedYear === now.getFullYear() && selectedMonth < now.getMonth()) ? daysInMonth : 1);
   const remainingDays = Math.max(1, daysInMonth - currentDay);
-  const dailyBudgetRemaining = netMonthBalance > 0 ? (netMonthBalance / remainingDays) : 0;
-  const dailySpendAverage = currentDay > 0 ? (actualTotals.expense / currentDay) : 0;
+  const dailyBudgetRemaining = netMonthBalance > 0 && isTrackingPeriod ? (netMonthBalance / remainingDays) : 0;
+  const dailySpendAverage = currentDay > 0 && actualTotals.expense > 0 ? (actualTotals.expense / currentDay) : 0;
 
   // 6 Meses de Flujo Histórico
   const last6MonthsData = useMemo(() => {
@@ -1502,18 +1506,34 @@ export default function Home() {
       }
       const pKey = `${targetYear}-${String(targetMonth + 1).padStart(2, "0")}`;
       const isSelected = pKey === activePeriod;
+      const pIsTracking = pKey >= initialPeriod;
 
+      // 1. Ingresos registrados en ese período
       const pIncome = transactions
         .filter(t => (t.period ?? initialPeriod) === pKey && t.kind === "income")
         .reduce((sum, t) => sum + t.amount, 0);
 
-      let pExpense = transactions
+      // 2. Gastos registrados en ese período
+      const txExp = transactions
         .filter(t => (t.period ?? initialPeriod) === pKey && t.kind === "expense")
         .reduce((sum, t) => sum + t.amount, 0);
 
-      if (isSelected) {
-        pExpense += extraExpenseForPeriod;
-      }
+      const monthlyExp = monthlyExpenses
+        .filter(item => (item.period ?? initialPeriod) === pKey && !transactions.some(t => t.kind === "expense" && (t.id === item.transactionId || t.id === item.id)))
+        .reduce((sum, item) => sum + item.amount, 0);
+
+      const subExp = expenseGroups
+        .flatMap(group => group.items)
+        .filter(item => (item.period ?? initialPeriod) === pKey && !transactions.some(t => t.kind === "expense" && (t.id === item.transactionId || t.id === item.id)))
+        .reduce((sum, item) => sum + item.amount, 0);
+
+      const fixedExp = pIsTracking
+        ? fixedExpenses
+            .filter(item => !transactions.some(t => t.kind === "expense" && (t.id === item.transactionId || t.id === item.id)))
+            .reduce((sum, item) => sum + item.amount, 0)
+        : 0;
+
+      const pExpense = txExp + monthlyExp + subExp + fixedExp;
 
       list.push({
         year: targetYear,
@@ -1528,7 +1548,7 @@ export default function Home() {
       });
     }
     return list;
-  }, [selectedYear, selectedMonth, activePeriod, transactions, extraExpenseForPeriod, initialPeriod]);
+  }, [selectedYear, selectedMonth, activePeriod, transactions, monthlyExpenses, expenseGroups, fixedExpenses, initialPeriod]);
 
   const chart6MonthsMax = Math.max(
     ...last6MonthsData.map(m => Math.max(m.income, m.expense)),
@@ -2089,7 +2109,9 @@ export default function Home() {
                 </h2>
               </div>
               <p style={{fontSize:"12px",color:"var(--muted)",margin:"4px 0 0 0"}}>
-                {netMonthBalance > 0 
+                {totals.income === 0 && totals.expense === 0
+                  ? "No hay ingresos ni gastos registrados para este período."
+                  : netMonthBalance > 0 
                   ? `Tienes un superávit proyectado del ${savingsRate}% de tus ingresos para libre ahorro o contingencias.`
                   : netMonthBalance === 0
                   ? "Tus ingresos cubren exactamente tus gastos presupuestados (equilibrio justo)."
@@ -2097,21 +2119,21 @@ export default function Home() {
               </p>
             </div>
             <div style={{display:"flex",gap:"10px",alignItems:"center"}}>
-              <span className={`summary-header-badge ${netMonthBalance >= 0 ? "month-status-pill active" : "month-status-pill closed"}`} style={{fontSize:"12px",padding:"6px 14px"}}>
-                {netMonthBalance >= 0 ? "🟢 Superávit Saludable" : "🔴 Déficit de Presupuesto"}
+              <span className={`summary-header-badge ${totals.income === 0 && totals.expense === 0 ? "month-status-pill future" : netMonthBalance >= 0 ? "month-status-pill active" : "month-status-pill closed"}`} style={{fontSize:"12px",padding:"6px 14px"}}>
+                {totals.income === 0 && totals.expense === 0 ? "⚪ Sin movimientos" : netMonthBalance >= 0 ? "🟢 Superávit Saludable" : "🔴 Déficit de Presupuesto"}
               </span>
             </div>
           </div>
 
           <div style={{marginTop:"16px"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:"11px",fontWeight:700,color:"#475569",marginBottom:"4px"}}>
-              <span>Ejecución del Presupuesto: {spendRate}% del ingreso comprometido</span>
+              <span>{totals.income === 0 && totals.expense === 0 ? "Sin presupuesto ejecutado en este período" : `Ejecución del Presupuesto: ${spendRate}% del ingreso comprometido`}</span>
               <span>S/ {totals.expense.toLocaleString("es-PE",{minimumFractionDigits:2})} de S/ {totals.income.toLocaleString("es-PE",{minimumFractionDigits:2})}</span>
             </div>
             <div className="budget-bar-container">
               <div
-                className={`budget-bar-fill ${spendRate <= 70 ? "safe" : spendRate <= 90 ? "warning" : "danger"}`}
-                style={{width: `${Math.min(100, spendRate)}%`}}
+                className={`budget-bar-fill ${totals.income === 0 && totals.expense === 0 ? "safe" : spendRate <= 70 ? "safe" : spendRate <= 90 ? "warning" : "danger"}`}
+                style={{width: `${totals.income === 0 && totals.expense === 0 ? 0 : Math.min(100, spendRate)}%`}}
               />
             </div>
           </div>
@@ -2126,7 +2148,7 @@ export default function Home() {
                 S/ {totals.income.toLocaleString("es-PE",{minimumFractionDigits:2})}
               </div>
               <span className="health-kpi-subtext">
-                {hasSalaryInPeriod ? "✓ Sueldo incluido" : "Sin sueldo registrado"} {extraIncome > 0 ? `(+S/ ${extraIncome.toLocaleString("es-PE")} extra)` : ""}
+                {totals.income === 0 ? "Sin ingresos en este mes" : (hasSalaryInPeriod ? "✓ Sueldo incluido" : "Sin sueldo registrado") + (extraIncome > 0 ? ` (+S/ ${extraIncome.toLocaleString("es-PE")} extra)` : "")}
               </span>
             </div>
 
@@ -2139,20 +2161,20 @@ export default function Home() {
                 S/ {totals.expense.toLocaleString("es-PE",{minimumFractionDigits:2})}
               </div>
               <span className="health-kpi-subtext">
-                Pagado: S/ {actualTotals.expense.toLocaleString("es-PE",{minimumFractionDigits:2})} ({executedExpensePct}%)
+                {totals.expense === 0 ? "Sin gastos en este mes" : `Pagado: S/ ${actualTotals.expense.toLocaleString("es-PE",{minimumFractionDigits:2})} (${executedExpensePct}%)`}
               </span>
             </div>
 
             <div className="health-kpi-item">
               <div className="health-kpi-header">
                 <span className="health-kpi-title">Margen Neto Libre</span>
-                <Scale size={16} color={netMonthBalance >= 0 ? "var(--green)" : "#dc2626"}/>
+                <Scale size={16} color={totals.income === 0 && totals.expense === 0 ? "var(--muted)" : netMonthBalance >= 0 ? "var(--green)" : "#dc2626"}/>
               </div>
-              <div className="health-kpi-value" style={{color: netMonthBalance >= 0 ? "var(--green)" : "#dc2626"}}>
+              <div className="health-kpi-value" style={{color: totals.income === 0 && totals.expense === 0 ? "var(--muted)" : netMonthBalance >= 0 ? "var(--green)" : "#dc2626"}}>
                 {netMonthBalance < 0 ? `-S/ ${Math.abs(netMonthBalance).toLocaleString("es-PE",{minimumFractionDigits:2})}` : `S/ ${netMonthBalance.toLocaleString("es-PE",{minimumFractionDigits:2})}`}
               </div>
               <span className="health-kpi-subtext">
-                {netMonthBalance >= 0 ? `Equivale al ${savingsRate}% de tus ingresos` : "Requiere ajuste en gastos"}
+                {totals.income === 0 && totals.expense === 0 ? "Sin actividad contable" : netMonthBalance >= 0 ? `Equivale al ${savingsRate}% de tus ingresos` : "Requiere ajuste en gastos"}
               </span>
             </div>
 
@@ -2165,7 +2187,7 @@ export default function Home() {
                 S/ {dailyBudgetRemaining.toFixed(2)}<small style={{fontSize:"12px",fontWeight:600}}>/día</small>
               </div>
               <span className="health-kpi-subtext">
-                Para los {remainingDays} días restantes de {monthNames[selectedMonth]}
+                {totals.expense === 0 && totals.income === 0 ? "Sin consumo de presupuesto" : `Para los ${remainingDays} días restantes de ${monthNames[selectedMonth]}`}
               </span>
             </div>
           </div>
@@ -2203,18 +2225,30 @@ export default function Home() {
               </div>
               <div className="chart-6m-bars">
                 {last6MonthsData.map(m => {
-                  const incHeight = chart6MonthsMax > 0 ? (m.income / chart6MonthsMax) * 100 : 0;
-                  const expHeight = chart6MonthsMax > 0 ? (m.expense / chart6MonthsMax) * 100 : 0;
+                  const incHeight = chart6MonthsMax > 0 && m.income > 0 ? (m.income / chart6MonthsMax) * 100 : 0;
+                  const expHeight = chart6MonthsMax > 0 && m.expense > 0 ? (m.expense / chart6MonthsMax) * 100 : 0;
                   return (
                     <div
                       key={m.period}
                       className={`chart-6m-col ${m.isSelected ? "selected" : ""}`}
                       onClick={() => selectHistoricalMonth(m.year, m.month)}
-                      title={`${m.fullLabel}\nIngresos: S/ ${m.income.toFixed(2)}\nGastos: S/ ${m.expense.toFixed(2)}\nBalance: S/ ${m.balance.toFixed(2)}`}
+                      title={`${m.fullLabel}\nIngresos: S/ ${m.income.toLocaleString("es-PE",{minimumFractionDigits:2})}\nGastos: S/ ${m.expense.toLocaleString("es-PE",{minimumFractionDigits:2})}\nBalance: S/ ${m.balance.toLocaleString("es-PE",{minimumFractionDigits:2})}`}
                     >
                       <div className="chart-bars-duo">
-                        <div className="chart-bar-v income" style={{height: `${Math.max(4, incHeight)}%`}}/>
-                        <div className="chart-bar-v expense" style={{height: `${Math.max(4, expHeight)}%`}}/>
+                        <div
+                          className="chart-bar-v income"
+                          style={{
+                            height: m.income > 0 ? `${Math.max(6, incHeight)}%` : "3px",
+                            opacity: m.income > 0 ? 1 : 0.25
+                          }}
+                        />
+                        <div
+                          className="chart-bar-v expense"
+                          style={{
+                            height: m.expense > 0 ? `${Math.max(6, expHeight)}%` : "3px",
+                            opacity: m.expense > 0 ? 1 : 0.25
+                          }}
+                        />
                       </div>
                       <span className={`chart-col-label ${m.isSelected ? "selected" : ""}`}>
                         {m.label}
