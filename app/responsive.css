@@ -1,0 +1,577 @@
+/* ==========================================================================
+   FINANZA — SISTEMA DE ADAPTABILIDAD RESPONSIVA Y MÓVIL
+   ========================================================================== */
+
+/* --- TABLETS / PANTALLAS MEDIANAS (max-width: 1024px) --- */
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .savings-layout,
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+  .metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* --- TABLETS EN VERTICAL Y MÓVILES GRANDES (max-width: 800px) --- */
+@media (max-width: 800px) {
+  .sidebar {
+    transform: translateX(-100%) !important;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 15px 0 40px rgba(24, 36, 58, 0.25) !important;
+    z-index: 60 !important;
+  }
+  .sidebar.open {
+    transform: translateX(0) !important;
+  }
+  .sidebar-backdrop {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(15, 23, 42, 0.55) !important;
+    backdrop-filter: blur(3px) !important;
+    -webkit-backdrop-filter: blur(3px) !important;
+    z-index: 55 !important;
+  }
+  .close-mobile {
+    display: block !important;
+    margin-left: auto !important;
+  }
+  .menu {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 0 !important;
+    background: none !important;
+    cursor: pointer !important;
+    color: var(--ink) !important;
+    padding: 6px !important;
+    border-radius: 8px !important;
+  }
+  .menu:hover {
+    background: #f1f5f9 !important;
+  }
+  main {
+    margin-left: 0 !important;
+  }
+  header {
+    padding: 0 16px !important;
+    height: 64px !important;
+  }
+  .search {
+    display: none !important;
+  }
+  .sync-status {
+    display: none !important;
+  }
+  .header-actions .primary,
+  .header-actions .outline {
+    display: none !important;
+  }
+  .header-actions {
+    gap: 8px !important;
+  }
+  .header-actions .month {
+    display: inline-flex !important;
+    height: 36px !important;
+    padding: 0 10px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+  }
+  .header-actions .month-status-pill {
+    padding: 3px 8px !important;
+    font-size: 10px !important;
+  }
+  .month-menu {
+    position: fixed !important;
+    top: 66px !important;
+    right: 12px !important;
+    left: 12px !important;
+    width: auto !important;
+    max-width: 360px !important;
+    margin: 0 auto !important;
+    z-index: 100 !important;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25) !important;
+  }
+  .content {
+    padding: 18px 14px 40px !important;
+  }
+  .mobile-add {
+    display: flex !important;
+  }
+  .module-stats {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+  }
+  .budget-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .account-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .savings-goal-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .report-list > div {
+    grid-template-columns: 120px 1fr 90px !important;
+  }
+  .saving-actions {
+    flex-wrap: wrap !important;
+  }
+  .saving-actions .withdraw {
+    margin-left: 0 !important;
+  }
+  .warehouse-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .warehouse-search {
+    width: 100% !important;
+  }
+  .warehouse-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  }
+  .tx,
+  .tx:has(.completion-toggle),
+  .tx:has(.edit-tx),
+  .tx:has(.completion-toggle):has(.edit-tx) {
+    grid-template-columns: 38px 1fr auto 26px !important;
+  }
+  .tx-date {
+    display: none !important;
+  }
+}
+
+/* --- TELÉFONOS INTELIGENTES (max-width: 540px) --- */
+@media (max-width: 540px) {
+  .page-heading {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .page-heading h1 {
+    font-size: 19px !important;
+    line-height: 1.25 !important;
+  }
+  .page-heading > div > p:last-child {
+    max-width: 100% !important;
+  }
+  .page-heading > div:last-child {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+  .page-heading button.outline,
+  .page-heading button.primary,
+  .page-heading .mobile-add,
+  .module-heading > button,
+  .module-heading .primary {
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+  .module-heading {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .metrics {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    margin: 16px 0 !important;
+  }
+  .metric {
+    padding: 14px 16px !important;
+    align-items: center !important;
+  }
+  .summary-health-banner {
+    padding: 16px 14px !important;
+    margin-bottom: 16px !important;
+    border-radius: 14px !important;
+  }
+  .health-kpi-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .health-kpi-item {
+    padding: 12px 14px !important;
+  }
+  .health-kpi-value {
+    font-size: 20px !important;
+  }
+  .chart-card {
+    padding: 16px 12px !important;
+  }
+  .chart-6m-bars {
+    gap: 4px !important;
+    padding: 0 2px !important;
+    height: 160px !important;
+  }
+  .chart-6m-col {
+    padding: 4px 2px !important;
+  }
+  .chart-bars-duo {
+    gap: 3px !important;
+    height: 120px !important;
+  }
+  .chart-bar-v {
+    width: 9px !important;
+  }
+  .chart-col-label {
+    font-size: 9px !important;
+  }
+  .spending-card .donut-area {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 14px !important;
+    padding: 14px 0 6px !important;
+  }
+  .spending-card .donut {
+    align-self: center !important;
+    width: 120px !important;
+    height: 120px !important;
+    flex: 0 0 120px !important;
+  }
+  .spending-card .donut:after {
+    width: 72px !important;
+    height: 72px !important;
+  }
+  .spending-card .donut strong {
+    font-size: 13px !important;
+  }
+  .spending-card .category-list {
+    width: 100% !important;
+    max-height: 220px !important;
+  }
+  .spending-card .category-row {
+    grid-template-columns: 8px minmax(0, 1fr) auto 30px !important;
+    padding: 7px 4px !important;
+  }
+
+  /* MOVIMIENTOS EN MÓVIL */
+  .tx,
+  .tx:has(.completion-toggle),
+  .tx:has(.edit-tx),
+  .tx:has(.completion-toggle):has(.edit-tx) {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px 10px !important;
+    padding: 11px 0 !important;
+  }
+  .tx-icon {
+    flex: 0 0 34px !important;
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .tx-main {
+    flex: 1 1 calc(100% - 150px) !important;
+    min-width: 110px !important;
+  }
+  .tx-main strong {
+    font-size: 12px !important;
+  }
+  .tx-main span {
+    font-size: 9px !important;
+  }
+  .tx-date {
+    display: none !important;
+  }
+  .tx-amount {
+    flex: 0 0 auto !important;
+    text-align: right !important;
+    margin-left: auto !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+  }
+  .tx .completion-toggle {
+    margin-left: 44px !important;
+    width: 28px !important;
+    height: 28px !important;
+  }
+  .tx .edit-tx {
+    padding: 4px !important;
+  }
+  .tx .delete-tx {
+    opacity: 1 !important;
+    margin-left: auto !important;
+    padding: 4px !important;
+  }
+
+  /* GASTOS Y SUBGASTOS EN MÓVIL */
+  .expense-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    padding: 4px !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+  .expense-tabs button {
+    min-width: 0 !important;
+    padding: 8px 4px !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    text-align: center !important;
+    justify-content: center !important;
+    white-space: normal !important;
+  }
+  .expense-tabs button svg {
+    display: none !important;
+  }
+
+  .expense-row,
+  .expense-row:has(.completion-toggle) {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px 8px !important;
+    padding: 11px 0 !important;
+  }
+  .expense-kind-icon {
+    flex: 0 0 34px !important;
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .expense-row > div:nth-child(2) {
+    flex: 1 1 calc(100% - 150px) !important;
+    min-width: 110px !important;
+  }
+  .expense-row .expense-value {
+    flex: 0 0 auto !important;
+    text-align: right !important;
+    margin-left: auto !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+  }
+  .expense-row .completion-toggle {
+    margin-left: 42px !important;
+    width: 28px !important;
+    height: 28px !important;
+  }
+  .expense-row .add-subexpense {
+    font-size: 9px !important;
+    padding: 5px 8px !important;
+  }
+  .expense-row .expense-delete {
+    margin-left: auto !important;
+  }
+
+  .expense-group {
+    padding: 14px 12px !important;
+  }
+  .expense-group-head {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .expense-group-toggle {
+    flex: 1 1 100% !important;
+  }
+  .expense-group-total {
+    flex: 1 1 auto !important;
+    text-align: left !important;
+    margin-left: 27px !important;
+  }
+  .expense-group-head .add-subexpense {
+    font-size: 9px !important;
+    padding: 6px 8px !important;
+  }
+  .expense-group-head .expense-delete {
+    margin-left: auto !important;
+  }
+
+  .subexpense-list {
+    margin-left: 6px !important;
+    padding-left: 12px !important;
+  }
+  .subexpense-row,
+  .subexpense-row:has(.completion-toggle) {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px 8px !important;
+    padding: 9px 0 !important;
+  }
+  .subexpense-dot {
+    flex: 0 0 7px !important;
+  }
+  .subexpense-row > div:nth-child(2) {
+    flex: 1 1 calc(100% - 130px) !important;
+    min-width: 100px !important;
+  }
+  .subexpense-row > strong {
+    flex: 0 0 auto !important;
+    text-align: right !important;
+    margin-left: auto !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+  }
+  .subexpense-row .completion-toggle {
+    margin-left: 15px !important;
+    width: 26px !important;
+    height: 26px !important;
+  }
+  .subexpense-row .add-subexpense {
+    padding: 4px 7px !important;
+    font-size: 9px !important;
+  }
+  .subexpense-row .expense-delete {
+    margin-left: auto !important;
+  }
+
+  /* ALMACÉN EN MÓVIL */
+  .warehouse-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .warehouse-card {
+    padding: 16px 14px !important;
+  }
+  .warehouse-filters {
+    overflow-x: auto !important;
+    padding-bottom: 6px !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .warehouse-filters button {
+    flex-shrink: 0 !important;
+  }
+  .warehouse-widget-card {
+    padding: 16px 14px !important;
+    margin: 14px 0 !important;
+  }
+  .warehouse-widget-stats {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .price-calc-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .history-stats-grid {
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 6px !important;
+  }
+  .history-stat-card {
+    padding: 8px 4px !important;
+  }
+  .history-stat-card strong {
+    font-size: 12px !important;
+  }
+  .history-stat-card span {
+    font-size: 9px !important;
+  }
+
+  /* CUENTAS EN MÓVIL */
+  .account-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .account-card-box {
+    padding: 14px !important;
+  }
+
+  /* METAS Y AHORROS EN MÓVIL */
+  .goals-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .savings-hero strong {
+    font-size: 22px !important;
+  }
+  .saving-actions button {
+    width: 100% !important;
+    text-align: center !important;
+  }
+
+  /* REPORTES EN MÓVIL */
+  .report-list > div {
+    grid-template-columns: 1fr auto !important;
+  }
+  .report-bar {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+  }
+
+  /* MODALES Y FORMULARIOS EN MÓVIL */
+  .modal-backdrop {
+    padding: 10px !important;
+    align-items: flex-end !important;
+  }
+  .modal {
+    padding: 18px 14px !important;
+    max-height: 88vh !important;
+    overflow-y: auto !important;
+    border-radius: 16px !important;
+  }
+  .form-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .subexpense-inputs-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  .subexpense-inputs-grid > label:first-child {
+    grid-column: 1 / -1 !important;
+  }
+  .subexpense-inputs-grid .expense-delete {
+    grid-column: 1 / -1 !important;
+    justify-self: flex-end !important;
+    margin-bottom: 0 !important;
+  }
+  .modal-actions {
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+    margin-top: 18px !important;
+  }
+  .modal-actions button {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 11px 14px !important;
+  }
+  .toast {
+    right: 12px !important;
+    left: 12px !important;
+    bottom: 12px !important;
+    text-align: center !important;
+  }
+  .closed-month-banner {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .reopen-btn {
+    width: 100% !important;
+    text-align: center !important;
+  }
+}
+
+/* --- MÓVILES PEQUEÑOS (max-width: 380px) --- */
+@media (max-width: 380px) {
+  .content {
+    padding: 14px 10px 30px !important;
+  }
+  .page-heading h1 {
+    font-size: 18px !important;
+  }
+  .header-actions .month {
+    padding: 0 6px !important;
+    font-size: 11px !important;
+  }
+  .chart-bar-v {
+    width: 7px !important;
+  }
+  .chart-bars-duo {
+    gap: 2px !important;
+  }
+  .history-stat-card strong {
+    font-size: 11px !important;
+  }
+}
