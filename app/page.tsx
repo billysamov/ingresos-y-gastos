@@ -34,7 +34,7 @@ type WarehouseItem = {
   dbId?: string;
   name: string;
   category: string;
-  baseUnit: "kg" | "g" | "L" | "ml" | "unidad" | "lata" | "pañal" | "rollo" | "paquete";
+  baseUnit: "kg" | "g" | "L" | "ml" | "unidad" | "lata" | "pañal" | "rollo" | "paquete" | "litro" | "mano" | string;
   packageType: string;
   quantityUnit: string;
   packageFactor: number;
@@ -666,7 +666,8 @@ export default function Home() {
 
   const sueldoTx = useMemo(() => transactions.find(t => t.kind === "income" && (t.category === "Sueldo" || t.title.toLowerCase().includes("sueldo"))), [transactions]);
   const monthlySalary = (profile.monthlySalary && profile.monthlySalary > 0) ? profile.monthlySalary : (sueldoTx?.amount || 0);
-  const hasSalaryInPeriod = periodTransactions.some(t => t.kind === "income" && (t.category === "Sueldo" || t.title.toLowerCase().includes("sueldo")));
+  const periodSalaryTx = useMemo(() => periodTransactions.find(t => t.kind === "income" && (t.category === "Sueldo" || t.title.toLowerCase().includes("sueldo"))), [periodTransactions]);
+  const hasSalaryInPeriod = Boolean(periodSalaryTx);
   const accumulatedTotals = useMemo(() => ({
     income: transactions.filter(t => t.kind === "income").reduce((a, b) => a + b.amount, 0),
     expense: transactions.filter(t => t.kind === "expense" && (!t.planned || t.completed)).reduce((a, b) => a + b.amount, 0) + extraExpenseAccumulated,
@@ -1805,6 +1806,7 @@ export default function Home() {
         <ModuleHeading
           eyebrow="CATÁLOGO Y DESPENSA"
           title="Almacén de Compras Habituales"
+          text="Catálogo de productos habituales, historial de precios y proyecciones de compra para tus meses."
           action={
             <button className="primary" type="button" onClick={()=>setWarehouseModal({open:true,item:null})}>
               <Plus size={18}/> Nuevo producto en almacén
@@ -2471,7 +2473,7 @@ export default function Home() {
                     {t.kind==="income"?"+":"−"} S/ {t.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}
                   </div>
                   {t.requiresConfirmation && (
-                    <button className={`completion-toggle ${t.completed?"done":""}`} onClick={()=>toggleExpenseCompletion(t.id)} title={t.completed?"Realizado: volver a pendiente":"Marcar como realizado"}>
+                    <button className={`completion-toggle ${t.completed?"done":""}`} onClick={()=>toggleExpenseCompletion(t)} title={t.completed?"Realizado: volver a pendiente":"Marcar como realizado"}>
                       {t.completed?<Check size={15}/>:<Circle size={15}/>}
                     </button>
                   )}
