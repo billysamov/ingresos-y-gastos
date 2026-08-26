@@ -194,4 +194,69 @@ header{height:82px;background:rgba(255,255,255,0.95);backdrop-filter:blur(16px);
 .remanente-option-content strong{font-size:12px;font-weight:700;color:#1e293b}
 .remanente-option-content span{font-size:11px;color:var(--muted)}
 
+/* --- RESUMEN DASHBOARD V2 STYLES --- */
+.summary-header-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.summary-health-banner{background:linear-gradient(135deg,#ffffff 0%,#f8fafc 100%);border:1px solid #e2e8f0;border-radius:16px;padding:22px;margin:0 0 24px 0;box-shadow:0 4px 16px rgba(15,23,42,0.03)}
+.health-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:16px}
+.health-kpi-item{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;transition:all .2s ease}
+.health-kpi-item:hover{border-color:#cbd5e1;box-shadow:0 6px 18px rgba(15,23,42,0.04);transform:translateY(-1px)}
+.health-kpi-header{display:flex;justify-content:space-between;align-items:center}
+.health-kpi-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.health-kpi-value{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-0.5px}
+.health-kpi-subtext{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
+
+.budget-bar-container{width:100%;height:10px;background:#e2e8f0;border-radius:9999px;overflow:hidden;margin:6px 0}
+.budget-bar-fill{height:100%;border-radius:9999px;transition:width .4s ease}
+.budget-bar-fill.safe{background:linear-gradient(90deg,#10b981,#059669)}
+.budget-bar-fill.warning{background:linear-gradient(90deg,#f59e0b,#d97706)}
+.budget-bar-fill.danger{background:linear-gradient(90deg,#ef4444,#dc2626)}
+
+.chart-6m-bars{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;height:190px;padding:0 12px;flex:1}
+.chart-6m-col{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;position:relative;cursor:pointer;padding:6px;border-radius:8px;transition:background .2s}
+.chart-6m-col:hover{background:#f1f5f9}
+.chart-6m-col.selected{background:#eff6ff;border:1px solid #bfdbfe}
+.chart-bars-duo{display:flex;align-items:flex-end;gap:5px;height:150px;width:100%;justify-content:center}
+.chart-bar-v{width:14px;border-radius:4px 4px 1px 1px;transition:height .3s ease;min-height:3px}
+.chart-bar-v.income{background:#10b981}
+.chart-bar-v.expense{background:#f97316}
+.chart-col-label{font-size:11px;font-weight:700;color:#64748b;text-align:center}
+.chart-col-label.selected{color:#2563eb;font-weight:800}
+
+.category-row-bar{height:5px;background:#f1f5f9;border-radius:4px;overflow:hidden;margin-top:4px;width:100%}
+.category-row-bar-fill{height:100%;border-radius:4px}
+
+.account-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:14px}
+.account-card-box{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;transition:all .2s ease;box-shadow:0 2px 8px rgba(15,23,42,0.02)}
+.account-card-box:hover{border-color:#cbd5e1;box-shadow:0 8px 22px rgba(15,23,42,0.06);transform:translateY(-2px)}
+.account-card-top{display:flex;align-items:center;gap:12px}
+.account-logo-badge{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:18px;flex-shrink:0}
+.account-card-meta{flex:1;min-width:0}
+.account-card-meta strong{display:block;font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-card-meta span{font-size:11px;color:var(--muted)}
+.account-card-balance{font-size:18px;font-weight:800;color:var(--ink);letter-spacing:-0.3px}
+.account-card-flow{display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid #f1f5f9;font-size:11px}
+.account-card-flow span{color:var(--muted)}
+.account-card-flow strong.in{color:#16a34a}
+.account-card-flow strong.out{color:#ea580c}
+
+.warehouse-widget-card{background:linear-gradient(145deg,#f0f9ff 0%,#e0f2fe 100%);border:1px solid #bae6fd;border-radius:16px;padding:22px;margin:20px 0}
+.warehouse-widget-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.warehouse-widget-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.warehouse-widget-stat{background:rgba(255,255,255,0.85);backdrop-filter:blur(4px);border:1px solid rgba(186,230,253,0.7);padding:12px 14px;border-radius:12px}
+.warehouse-widget-stat span{display:block;font-size:11px;font-weight:600;color:#0369a1;margin-bottom:2px}
+.warehouse-widget-stat strong{font-size:17px;font-weight:800;color:#0c4a6e}
+
+.goals-summary-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px}
+.goals-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:14px}
+.goal-item-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.goal-item-header{display:flex;justify-content:space-between;align-items:center}
+.goal-item-header strong{font-size:13px;color:var(--ink)}
+.goal-item-header span{font-size:11px;font-weight:700;color:var(--purple)}
+.goal-item-bar{height:6px;background:#e2e8f0;border-radius:9999px;overflow:hidden}
+.goal-item-bar-fill{height:100%;background:var(--purple);border-radius:9999px}
+.goal-item-footer{display:flex;justify-content:space-between;align-items:center;font-size:11px}
+.goal-item-footer span{color:var(--muted)}
+.goal-item-footer strong{color:var(--ink)}
+
+
 

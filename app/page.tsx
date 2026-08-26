@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car, Check, ChevronDown, ChevronRight, Circle, CreditCard, History, Home as HomeIcon, Layers3, LayoutDashboard, Landmark, Lock, Menu, MoreHorizontal, Package, Pencil, PiggyBank, Plus, ReceiptText, Scale, Search, Settings, ShoppingBag, Smartphone, Target, Trash2, TrendingDown, TrendingUp, Unlock, Utensils, WalletCards, X, Zap } from "lucide-react";
+import { Activity, AlertCircle, ArrowDown, ArrowDownLeft, ArrowRight, ArrowUp, ArrowUpRight, Bell, BriefcaseBusiness, CalendarDays, Car, Check, ChevronDown, ChevronRight, Circle, CreditCard, History, Home as HomeIcon, Layers3, LayoutDashboard, Landmark, Lock, Menu, MoreHorizontal, Package, Pencil, Percent, PiggyBank, Plus, ReceiptText, Scale, Search, Settings, ShieldCheck, ShoppingBag, Smartphone, Sparkles, Target, Trash2, TrendingDown, TrendingUp, Unlock, Utensils, WalletCards, X, Zap } from "lucide-react";
 import { deleteRelationalRecord, isSupabaseConfigured, loadRelationalFinanceState, saveRelationalFinanceState } from "../lib/supabase-state";
 
 type ExpenseSource = "fixed"|"monthly"|"category";
@@ -1471,6 +1471,141 @@ export default function Home() {
   const netMonthBalance = totals.income - totals.expense;
   const extraIncome = Math.max(0, totals.income - monthlySalary);
 
+  // Métricas avanzadas para el Resumen Ejecutivo
+  const totalSavingsGeneral = savings;
+  const totalSavingsInGoals = savingsGoals.reduce((sum, goal) => sum + goal.amount, 0);
+  const totalSavingsAll = totalSavingsGeneral + totalSavingsInGoals;
+
+  const savingsRate = totals.income > 0 ? Math.max(0, Math.round(((totals.income - totals.expense) / totals.income) * 100)) : 0;
+  const spendRate = totals.income > 0 ? Math.min(100, Math.round((totals.expense / totals.income) * 100)) : 0;
+  const executedExpensePct = totals.expense > 0 ? Math.min(100, Math.round((actualTotals.expense / totals.expense) * 100)) : 0;
+
+  const now = new Date();
+  const isViewingCurrentCalendarMonth = now.getFullYear() === selectedYear && now.getMonth() === selectedMonth;
+  const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+  const currentDay = isViewingCurrentCalendarMonth
+    ? now.getDate()
+    : (selectedYear < now.getFullYear() || (selectedYear === now.getFullYear() && selectedMonth < now.getMonth()) ? daysInMonth : 1);
+  const remainingDays = Math.max(1, daysInMonth - currentDay);
+  const dailyBudgetRemaining = netMonthBalance > 0 ? (netMonthBalance / remainingDays) : 0;
+  const dailySpendAverage = currentDay > 0 ? (actualTotals.expense / currentDay) : 0;
+
+  // 6 Meses de Flujo Histórico
+  const last6MonthsData = useMemo(() => {
+    const list = [];
+    for (let i = 5; i >= 0; i--) {
+      let targetMonth = selectedMonth - i;
+      let targetYear = selectedYear;
+      while (targetMonth < 0) {
+        targetMonth += 12;
+        targetYear -= 1;
+      }
+      const pKey = `${targetYear}-${String(targetMonth + 1).padStart(2, "0")}`;
+      const isSelected = pKey === activePeriod;
+
+      const pIncome = transactions
+        .filter(t => (t.period ?? initialPeriod) === pKey && t.kind === "income")
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      let pExpense = transactions
+        .filter(t => (t.period ?? initialPeriod) === pKey && t.kind === "expense")
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      if (isSelected) {
+        pExpense += extraExpenseForPeriod;
+      }
+
+      list.push({
+        year: targetYear,
+        month: targetMonth,
+        period: pKey,
+        label: monthNames[targetMonth].slice(0, 3),
+        fullLabel: `${monthNames[targetMonth]} ${targetYear}`,
+        income: pIncome,
+        expense: pExpense,
+        balance: pIncome - pExpense,
+        isSelected
+      });
+    }
+    return list;
+  }, [selectedYear, selectedMonth, activePeriod, transactions, extraExpenseForPeriod, initialPeriod]);
+
+  const chart6MonthsMax = Math.max(
+    ...last6MonthsData.map(m => Math.max(m.income, m.expense)),
+    1000
+  );
+
+  // Cuentas y saldos calculados en tiempo real
+  const accountBalances = useMemo(() => {
+    const knownAccounts = [
+      { name: "BCP •• 2847", short: "BCP", color: "#002a8f", bg: "#e6eeff", icon: "🏛️" },
+      { name: "Yape", short: "Yape", color: "#742284", bg: "#f9ebfc", icon: "📱" },
+      { name: "Interbank •• 9041", short: "Interbank", color: "#009944", bg: "#e6f8ee", icon: "💳" },
+      { name: "Efectivo", short: "Efectivo", color: "#16a34a", bg: "#ecfdf5", icon: "💵" }
+    ];
+
+    const foundNames = Array.from(new Set(
+      transactions.map(t => t.account).filter(acc => acc && !knownAccounts.some(k => k.name === acc || k.short === acc))
+    ));
+
+    const otherAccounts = foundNames.map(name => ({
+      name,
+      short: name,
+      color: "#475569",
+      bg: "#f1f5f9",
+      icon: "💼"
+    }));
+
+    const allAccs = [...knownAccounts, ...otherAccounts];
+
+    return allAccs.map(acc => {
+      const accTxs = transactions.filter(t => t.account === acc.name || t.account === acc.short);
+      const totalIn = accTxs.filter(t => t.kind === "income").reduce((s, t) => s + t.amount, 0);
+      const totalOut = accTxs.filter(t => t.kind === "expense" && (!t.planned || t.completed)).reduce((s, t) => s + t.amount, 0);
+      
+      const monthTxs = periodTransactions.filter(t => t.account === acc.name || t.account === acc.short);
+      const monthIn = monthTxs.filter(t => t.kind === "income").reduce((s, t) => s + t.amount, 0);
+      const monthOut = monthTxs.filter(t => t.kind === "expense" && (!t.planned || t.completed)).reduce((s, t) => s + t.amount, 0);
+
+      return {
+        ...acc,
+        balance: totalIn - totalOut,
+        monthIncome: monthIn,
+        monthExpense: monthOut,
+        txCount: monthTxs.length
+      };
+    });
+  }, [transactions, periodTransactions]);
+
+  // Resumen del Módulo Almacén
+  const warehouseMonthPurchases = useMemo(() => {
+    return periodTransactions.filter(t => t.warehouseItemId || t.title.includes("("));
+  }, [periodTransactions]);
+
+  const warehouseMonthSpend = useMemo(() => {
+    return warehouseMonthPurchases.reduce((sum, t) => sum + t.amount, 0);
+  }, [warehouseMonthPurchases]);
+
+  const warehousePriceChanges = useMemo(() => {
+    return warehouseItems.map(item => {
+      if (item.priceHistory.length < 2) return null;
+      const latest = item.priceHistory[item.priceHistory.length - 1];
+      const previous = item.priceHistory[item.priceHistory.length - 2];
+      const diff = latest.unitPrice - previous.unitPrice;
+      const pct = previous.unitPrice > 0 ? (diff / previous.unitPrice) * 100 : 0;
+      return { item, diff, pct, latest, previous };
+    }).filter(Boolean) as { item: WarehouseItem; diff: number; pct: number; latest: PriceRecord; previous: PriceRecord }[];
+  }, [warehouseItems]);
+
+  const warehouseSavingsCount = warehousePriceChanges.filter(c => c.diff < 0).length;
+  const warehouseInflationCount = warehousePriceChanges.filter(c => c.diff > 0).length;
+
+  function selectHistoricalMonth(year: number, month: number) {
+    setSelectedYear(year);
+    setSelectedMonth(month);
+    setNotice(`📅 Viendo período ${monthNames[month]} ${year}`);
+  }
+
   function moduleContent() {
     if(active==="Movimientos") return <>
       <ModuleHeading eyebrow="REGISTROS" title="Movimientos" text="Consulta, busca y administra todos tus ingresos y gastos." action={<button className="primary" onClick={openNewMovementModal}><Plus size={18}/>Nuevo movimiento</button>}/>
@@ -1920,75 +2055,403 @@ export default function Home() {
           </div>
         )}
         {active!=="Resumen" ? moduleContent() : <>
-        <div className="page-heading"><div><p className="eyebrow">PERÍODO: {monthNames[selectedMonth].toUpperCase()} {selectedYear}</p><h1>Buenos días, {profile.fullName} <span>👋</span></h1><p>Aquí tienes el resumen de tus finanzas de {monthNames[selectedMonth].toLowerCase()}.</p></div><button className="mobile-add primary" onClick={openNewMovementModal}><Plus size={18}/>Registrar</button></div>
-
-        <section className="metrics">
-          <Metric label="Saldo real" value={balance} delta="Solo pagos realizados" icon={<WalletCards/>} tone="blue" />
-          <Metric label="Saldo proyectado" value={projectedBalance} delta="Incluye gastos pendientes" icon={<TrendingUp/>} tone="purple" />
-          <Metric label="Gastos realizados" value={actualTotals.expense} delta={`Pronóstico: S/ ${totals.expense.toLocaleString("es-PE",{minimumFractionDigits:2})}`} icon={<ArrowUpRight/>} tone="orange" />
-          <Metric label="Ahorro total" value={savings+savingsGoals.reduce((sum,goal)=>sum+goal.amount,0)} delta="Reserva general y metas" icon={<PiggyBank/>} tone="purple"/>
-        </section>
-
-        <article className="card module-card" style={{margin:"0 0 25px 0", padding:"22px"}}>
-          <div className="card-title">
-            <div>
-              <h2>Análisis de Ingresos vs. Gastos y Ahorro ({monthNames[selectedMonth]} {selectedYear})</h2>
-              <p>Desglose de tus ingresos totales (Sueldo + Extras), gastos de consumo y el monto apartado a reserva de ahorro</p>
+        <div className="page-heading">
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px"}}>
+              <p className="eyebrow" style={{margin:0}}>PERÍODO: {monthNames[selectedMonth].toUpperCase()} {selectedYear}</p>
+              <span className={`month-status-pill ${isPeriodClosed(activePeriod)?"closed":selectedYear>2026||(selectedYear===2026&&selectedMonth>7)?"future":"active"}`}>
+                {isPeriodClosed(activePeriod) ? "🟡 Período Cerrado" : selectedYear>2026||(selectedYear===2026&&selectedMonth>7) ? "⚪ Mes Planificado" : "🟢 Período Activo"}
+              </span>
             </div>
-            {monthlySalary > 0 && !hasSalaryInPeriod ? (
-              <button className="primary" onClick={registerMonthlySalary}>
-                <Plus size={16}/> Registrar sueldo del mes (S/ {monthlySalary.toLocaleString("es-PE")})
+            <h1>Buenos días, {profile.fullName} <span>👋</span></h1>
+            <p>Panel de control y resumen ejecutivo de tus finanzas para {monthNames[selectedMonth].toLowerCase()} {selectedYear}.</p>
+          </div>
+          <div style={{display:"flex",gap:"10px",alignItems:"center",flexWrap:"wrap"}}>
+            {!isPeriodClosed(activePeriod) && (
+              <button className="outline" style={{height:"42px",marginTop:0,width:"auto",padding:"0 16px",fontSize:"13px",display:"inline-flex",alignItems:"center",gap:"6px"}} onClick={openCloseMonthModal}>
+                <Lock size={15}/> Cerrar mes contable
               </button>
-            ) : (
-              <span className="sync-status synced">✓ Sueldo registrado</span>
             )}
+            <button className="mobile-add primary" onClick={openNewMovementModal}>
+              <Plus size={18}/>Registrar
+            </button>
           </div>
-          <div className="salary-stats-grid" style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:"14px", marginTop:"16px"}}>
-            <div style={{background:"#f8fafc", padding:"14px", borderRadius:"10px", border:"1px solid #e2e8f0"}}>
-              <span style={{fontSize:"11px", color:"var(--muted)"}}>Ingresos Totales del Mes</span>
-              <div style={{fontSize:"19px", fontWeight:700, margin:"4px 0", color:"var(--green)"}}>S/ {totals.income.toLocaleString("es-PE",{minimumFractionDigits:2})}</div>
-              <small style={{fontSize:"10px", color:"var(--muted)"}}>Sueldo: S/ {monthlySalary.toLocaleString("es-PE")} {extraIncome > 0 ? `+ Extra: S/ ${extraIncome.toLocaleString("es-PE")}` : ""}</small>
-            </div>
-            <div style={{background:"#fff7ed", padding:"14px", borderRadius:"10px", border:"1px solid #ffedd5"}}>
-              <span style={{fontSize:"11px", color:"var(--muted)"}}>Gastos Totales del Mes</span>
-              <div style={{fontSize:"19px", fontWeight:700, margin:"4px 0", color:"var(--orange)"}}>S/ {totals.expense.toLocaleString("es-PE",{minimumFractionDigits:2})}</div>
-              <small style={{fontSize:"10px", color:"var(--muted)"}}>Gastos fijos, mensuales y categorías</small>
-            </div>
-            <div style={{background:netMonthBalance>=0?"#f0fdf4":"#fef2f2", padding:"14px", borderRadius:"10px", border:netMonthBalance>=0?"1px solid #bbf7d0":"1px solid #fecaca"}}>
-              <span style={{fontSize:"11px", color:"var(--muted)"}}>Balance Neto del Mes</span>
-              <div style={{fontSize:"19px", fontWeight:700, margin:"4px 0", color:netMonthBalance>=0?"var(--green)":"#dc2626"}}>{netMonthBalance < 0 ? `-S/ ${Math.abs(netMonthBalance).toLocaleString("es-PE",{minimumFractionDigits:2})}` : `S/ ${netMonthBalance.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</div>
-              <small style={{fontSize:"10px", fontWeight:700, color:netMonthBalance>=0?"var(--green)":"#dc2626"}}>{netMonthBalance>=0 ? "Superávit disponible" : "Déficit mensual actual"}</small>
-            </div>
-          </div>
-        </article>
+        </div>
 
+        {/* 1. Resumen de Salud Financiera Global */}
+        <section className="summary-health-banner">
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"12px"}}>
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                <Sparkles size={18} color="#1767e8"/>
+                <h2 style={{fontSize:"16px",fontWeight:800,margin:0,color:"var(--ink)"}}>
+                  Diagnóstico de Salud Financiera ({monthNames[selectedMonth]} {selectedYear})
+                </h2>
+              </div>
+              <p style={{fontSize:"12px",color:"var(--muted)",margin:"4px 0 0 0"}}>
+                {netMonthBalance > 0 
+                  ? `Tienes un superávit proyectado del ${savingsRate}% de tus ingresos para libre ahorro o contingencias.`
+                  : netMonthBalance === 0
+                  ? "Tus ingresos cubren exactamente tus gastos presupuestados (equilibrio justo)."
+                  : `Tus gastos proyectados superan tus ingresos por S/ ${Math.abs(netMonthBalance).toLocaleString("es-PE",{minimumFractionDigits:2})}.`}
+              </p>
+            </div>
+            <div style={{display:"flex",gap:"10px",alignItems:"center"}}>
+              <span className={`summary-header-badge ${netMonthBalance >= 0 ? "month-status-pill active" : "month-status-pill closed"}`} style={{fontSize:"12px",padding:"6px 14px"}}>
+                {netMonthBalance >= 0 ? "🟢 Superávit Saludable" : "🔴 Déficit de Presupuesto"}
+              </span>
+            </div>
+          </div>
+
+          <div style={{marginTop:"16px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:"11px",fontWeight:700,color:"#475569",marginBottom:"4px"}}>
+              <span>Ejecución del Presupuesto: {spendRate}% del ingreso comprometido</span>
+              <span>S/ {totals.expense.toLocaleString("es-PE",{minimumFractionDigits:2})} de S/ {totals.income.toLocaleString("es-PE",{minimumFractionDigits:2})}</span>
+            </div>
+            <div className="budget-bar-container">
+              <div
+                className={`budget-bar-fill ${spendRate <= 70 ? "safe" : spendRate <= 90 ? "warning" : "danger"}`}
+                style={{width: `${Math.min(100, spendRate)}%`}}
+              />
+            </div>
+          </div>
+
+          <div className="health-kpi-grid">
+            <div className="health-kpi-item">
+              <div className="health-kpi-header">
+                <span className="health-kpi-title">Ingreso Total</span>
+                <ArrowDownLeft size={16} color="var(--green)"/>
+              </div>
+              <div className="health-kpi-value" style={{color:"var(--green)"}}>
+                S/ {totals.income.toLocaleString("es-PE",{minimumFractionDigits:2})}
+              </div>
+              <span className="health-kpi-subtext">
+                {hasSalaryInPeriod ? "✓ Sueldo incluido" : "Sin sueldo registrado"} {extraIncome > 0 ? `(+S/ ${extraIncome.toLocaleString("es-PE")} extra)` : ""}
+              </span>
+            </div>
+
+            <div className="health-kpi-item">
+              <div className="health-kpi-header">
+                <span className="health-kpi-title">Gastos del Período</span>
+                <ArrowUpRight size={16} color="var(--orange)"/>
+              </div>
+              <div className="health-kpi-value" style={{color:"var(--orange)"}}>
+                S/ {totals.expense.toLocaleString("es-PE",{minimumFractionDigits:2})}
+              </div>
+              <span className="health-kpi-subtext">
+                Pagado: S/ {actualTotals.expense.toLocaleString("es-PE",{minimumFractionDigits:2})} ({executedExpensePct}%)
+              </span>
+            </div>
+
+            <div className="health-kpi-item">
+              <div className="health-kpi-header">
+                <span className="health-kpi-title">Margen Neto Libre</span>
+                <Scale size={16} color={netMonthBalance >= 0 ? "var(--green)" : "#dc2626"}/>
+              </div>
+              <div className="health-kpi-value" style={{color: netMonthBalance >= 0 ? "var(--green)" : "#dc2626"}}>
+                {netMonthBalance < 0 ? `-S/ ${Math.abs(netMonthBalance).toLocaleString("es-PE",{minimumFractionDigits:2})}` : `S/ ${netMonthBalance.toLocaleString("es-PE",{minimumFractionDigits:2})}`}
+              </div>
+              <span className="health-kpi-subtext">
+                {netMonthBalance >= 0 ? `Equivale al ${savingsRate}% de tus ingresos` : "Requiere ajuste en gastos"}
+              </span>
+            </div>
+
+            <div className="health-kpi-item">
+              <div className="health-kpi-header">
+                <span className="health-kpi-title">Ritmo de Gasto Disponible</span>
+                <Activity size={16} color="var(--blue)"/>
+              </div>
+              <div className="health-kpi-value" style={{color:"var(--blue)"}}>
+                S/ {dailyBudgetRemaining.toFixed(2)}<small style={{fontSize:"12px",fontWeight:600}}>/día</small>
+              </div>
+              <span className="health-kpi-subtext">
+                Para los {remainingDays} días restantes de {monthNames[selectedMonth]}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* 2. Métricas Clave de Saldo y Ahorro */}
+        <section className="metrics">
+          <Metric label="Saldo en Cuentas (Real)" value={balance} delta="Dinero confirmado disponible hoy" icon={<WalletCards/>} tone="blue" />
+          <Metric label="Saldo Proyectado al Cierre" value={projectedBalance} delta="Tras cubrir todos los pendientes" icon={<TrendingUp/>} tone="purple" />
+          <Metric label="Gastos Pagados" value={actualTotals.expense} delta={`Faltan S/ ${Math.max(0, totals.expense - actualTotals.expense).toLocaleString("es-PE",{minimumFractionDigits:2})} por confirmar`} icon={<ArrowUpRight/>} tone="orange" />
+          <Metric label="Patrimonio de Ahorro" value={totalSavingsAll} delta={`S/ ${totalSavingsGeneral.toLocaleString("es-PE")} libre + S/ ${totalSavingsInGoals.toLocaleString("es-PE")} en metas`} icon={<PiggyBank/>} tone="purple"/>
+        </section>
+
+        {/* 3. Grid Principal: Flujo 6 Meses + Categorías + Movimientos + Ahorro */}
         <section className="dashboard-grid">
+          {/* Tarjeta: Flujo Histórico 6 Meses */}
           <article className="card chart-card">
-            <div className="card-title"><div><h2>Flujo de dinero</h2><p>Ingresos vs. gastos mensuales</p></div><button>Últimos 6 meses <ChevronDown size={15}/></button></div>
-            <div className="chart-wrap"><div className="y-axis"><span>S/ {chartMax.toLocaleString("es-PE")}</span><span>S/ {Math.round(chartMax*.75).toLocaleString("es-PE")}</span><span>S/ {Math.round(chartMax*.5).toLocaleString("es-PE")}</span><span>S/ {Math.round(chartMax*.25).toLocaleString("es-PE")}</span><span>S/ 0</span></div><div className="bars">
-              {transactions.length>0?<div className="bar-group"><div className="bar income" style={{height:`${totals.income/chartMax*100}%`}}/><div className="bar expense" style={{height:`${totals.expense/chartMax*100}%`}}/><span>Mes actual</span></div>:<div className="empty-state"><TrendingUp size={20}/><strong>Sin datos para el gráfico</strong><span>Registra movimientos para ver tu flujo.</span></div>}
-            </div></div><div className="legend"><span><i className="dot green"/>Ingresos</span><span><i className="dot orange"/>Gastos</span></div>
+            <div className="card-title">
+              <div>
+                <h2>Flujo de dinero comparativo (Últimos 6 meses)</h2>
+                <p>Ingresos (verde) vs. Gastos (naranja). Haz clic en una columna para saltar de período.</p>
+              </div>
+              <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+                <span style={{fontSize:"11px",color:"var(--muted)"}}>Mes activo: <strong>{monthNames[selectedMonth]} {selectedYear}</strong></span>
+              </div>
+            </div>
+
+            <div className="chart-wrap">
+              <div className="y-axis">
+                <span>S/ {chart6MonthsMax.toLocaleString("es-PE")}</span>
+                <span>S/ {Math.round(chart6MonthsMax * 0.75).toLocaleString("es-PE")}</span>
+                <span>S/ {Math.round(chart6MonthsMax * 0.50).toLocaleString("es-PE")}</span>
+                <span>S/ {Math.round(chart6MonthsMax * 0.25).toLocaleString("es-PE")}</span>
+                <span>S/ 0</span>
+              </div>
+              <div className="chart-6m-bars">
+                {last6MonthsData.map(m => {
+                  const incHeight = chart6MonthsMax > 0 ? (m.income / chart6MonthsMax) * 100 : 0;
+                  const expHeight = chart6MonthsMax > 0 ? (m.expense / chart6MonthsMax) * 100 : 0;
+                  return (
+                    <div
+                      key={m.period}
+                      className={`chart-6m-col ${m.isSelected ? "selected" : ""}`}
+                      onClick={() => selectHistoricalMonth(m.year, m.month)}
+                      title={`${m.fullLabel}\nIngresos: S/ ${m.income.toFixed(2)}\nGastos: S/ ${m.expense.toFixed(2)}\nBalance: S/ ${m.balance.toFixed(2)}`}
+                    >
+                      <div className="chart-bars-duo">
+                        <div className="chart-bar-v income" style={{height: `${Math.max(4, incHeight)}%`}}/>
+                        <div className="chart-bar-v expense" style={{height: `${Math.max(4, expHeight)}%`}}/>
+                      </div>
+                      <span className={`chart-col-label ${m.isSelected ? "selected" : ""}`}>
+                        {m.label}
+                        {m.isSelected && <span style={{display:"block",fontSize:"9px",color:"#2563eb",fontWeight:800}}>• Activo</span>}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="legend">
+              <span><i className="dot green"/>Ingresos</span>
+              <span><i className="dot orange"/>Gastos</span>
+              <span style={{color:"#64748b"}}><i className="dot blue"/>Período seleccionado</span>
+            </div>
           </article>
 
+          {/* Tarjeta: Gastos por Categoría */}
           <article className="card spending-card">
-            <div className="card-title"><div><h2>Gastos por categoría</h2><p>Pronóstico y movimientos de este mes</p></div><button className="category-details" onClick={()=>activateModule("Gastos")}>Gestionar gastos</button></div>
-            <div className="donut-area"><div className="donut" style={{background:dashboardDonut}}><div><strong>S/ {dashboardCategoryTotal.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><span>Total previsto</span></div></div><div className="category-list">
-              {dashboardCategories.map(([name,value],index)=><button type="button" className="category-row" key={name} onClick={()=>inspectCategory(name)} title={`Ver movimientos de ${name}`}><i className="dot" style={{background:dashboardPalette[index%dashboardPalette.length]}}/><span>{name}</span><strong>S/ {value.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong><small>{dashboardCategoryTotal?`${Math.round(value/dashboardCategoryTotal*100)}%`:"Sin gasto"}</small></button>)}
-            </div></div>
+            <div className="card-title">
+              <div>
+                <h2>Gastos por categoría</h2>
+                <p>Presupuesto y consumos de {monthNames[selectedMonth]}</p>
+              </div>
+              <button className="category-details" onClick={()=>activateModule("Gastos")}>Gestionar gastos</button>
+            </div>
+            <div className="donut-area">
+              <div className="donut" style={{background:dashboardDonut}}>
+                <div>
+                  <strong>S/ {dashboardCategoryTotal.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
+                  <span>Total previsto</span>
+                </div>
+              </div>
+              <div className="category-list">
+                {dashboardCategories.map(([name,value],index)=>{
+                  const pct = dashboardCategoryTotal > 0 ? (value / dashboardCategoryTotal) * 100 : 0;
+                  const color = dashboardPalette[index % dashboardPalette.length];
+                  return (
+                    <button type="button" className="category-row" key={name} onClick={()=>inspectCategory(name)} title={`Ver movimientos de ${name}`}>
+                      <i className="dot" style={{background:color}}/>
+                      <div style={{minWidth:0,flex:1}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:"4px"}}>
+                          <span>{name}</span>
+                          <strong>S/ {value.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>
+                        </div>
+                        <div className="category-row-bar">
+                          <div className="category-row-bar-fill" style={{width:`${pct}%`,background:color}}/>
+                        </div>
+                      </div>
+                      <small>{dashboardCategoryTotal?`${Math.round(pct)}%`:"0%"}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </article>
 
+          {/* Tarjeta: Últimos Movimientos */}
           <article className="card transactions-card">
-            <div className="card-title"><div><h2>Últimos movimientos</h2><p>Tus transacciones más recientes</p></div><button onClick={()=>activateModule("Movimientos")}>Ver todos <span>→</span></button></div>
-            <div className="tx-list">{visibleTransactions.slice(0,6).map(t=><div className="tx" key={t.id}><div className={`tx-icon ${t.kind}`}>{categoryIcon(t.category,t.kind)}</div><div className="tx-main"><strong>{t.title}</strong><span>{t.category} · {t.account}</span></div><div className="tx-date">{t.date}</div><div className={`tx-amount ${t.kind}`}>{t.kind==="income"?"+":"−"} S/ {t.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</div><button className="delete-tx" aria-label={`Eliminar ${t.title}`} onClick={()=>removeMovement(t.id)}><Trash2 size={14}/></button></div>)}{visibleTransactions.length===0&&<div className="empty-state"><Search size={22}/><strong>No encontramos movimientos</strong><span>Prueba con otra palabra.</span></div>}</div>
+            <div className="card-title">
+              <div>
+                <h2>Últimos movimientos del período</h2>
+                <p>Tus transacciones recientes en {monthNames[selectedMonth]} {selectedYear}</p>
+              </div>
+              <button onClick={()=>activateModule("Movimientos")}>Ver todos <span>→</span></button>
+            </div>
+            <div className="tx-list">
+              {visibleTransactions.slice(0,6).map(t=>(
+                <div className="tx" key={t.id}>
+                  <div className={`tx-icon ${t.kind}`}>{categoryIcon(t.category,t.kind)}</div>
+                  <div className="tx-main">
+                    <div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}>
+                      <strong>{t.title}</strong>
+                      {t.warehouseItemId && <span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}}>📦 Almacén</span>}
+                    </div>
+                    <span>{t.category} · {t.account} · {t.planned ? (t.completed ? "Realizado" : "Pendiente") : "Confirmado"}</span>
+                  </div>
+                  <div className="tx-date">{t.date}</div>
+                  <div className={`tx-amount ${t.kind}`}>
+                    {t.kind==="income"?"+":"−"} S/ {t.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}
+                  </div>
+                  {t.requiresConfirmation && (
+                    <button className={`completion-toggle ${t.completed?"done":""}`} onClick={()=>toggleExpenseCompletion(t.id)} title={t.completed?"Realizado: volver a pendiente":"Marcar como realizado"}>
+                      {t.completed?<Check size={15}/>:<Circle size={15}/>}
+                    </button>
+                  )}
+                  <button className="delete-tx" aria-label={`Eliminar ${t.title}`} onClick={()=>removeMovement(t.id)}>
+                    <Trash2 size={14}/></button>
+                </div>
+              ))}
+              {visibleTransactions.length===0&&<div className="empty-state"><Search size={22}/><strong>No encontramos movimientos</strong><span>Prueba con otra palabra.</span></div>}
+            </div>
           </article>
 
+          {/* Tarjeta: Metas de Ahorro y Colchón */}
           <article className="card goal-card">
-            <div className="card-title"><div><h2>Ahorro general</h2><p>Reserva sin una meta específica</p></div><button className="dots"><MoreHorizontal/></button></div>
-            <div className="goal-amount"><strong>S/ {savings.toLocaleString("es-PE")}</strong></div><div className="goal-tip"><Target size={20}/><div><strong>Tu reserva disponible</strong><span>Este dinero no está comprometido con ninguna meta y puedes usarlo cuando sea necesario.</span></div></div><button className="outline" onClick={()=>setSavingContributionTarget("general")}>Registrar movimiento</button>
+            <div className="card-title">
+              <div>
+                <h2>Ahorro y Metas Financieras</h2>
+                <p>Reserva disponible y objetivos específicos</p>
+              </div>
+              <button onClick={()=>setShowSavingGoalModal(true)}><Plus size={14}/> Nueva meta</button>
+            </div>
+            
+            <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:"12px",padding:"16px",marginTop:"14px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+                <div>
+                  <span style={{fontSize:"11px",color:"var(--muted)",fontWeight:600}}>Ahorro General Disponible</span>
+                  <div style={{fontSize:"24px",fontWeight:800,color:"var(--purple)",margin:"4px 0"}}>
+                    S/ {savings.toLocaleString("es-PE",{minimumFractionDigits:2})}
+                  </div>
+                </div>
+                <button className="outline" style={{width:"auto",margin:0,padding:"6px 14px",fontSize:"12px"}} onClick={()=>setSavingContributionTarget("general")}>
+                  Aportar / Retirar
+                </button>
+              </div>
+              <small style={{fontSize:"10px",color:"var(--muted)",display:"block",marginTop:"4px"}}>Fondo de reserva sin comprometer con ninguna meta.</small>
+            </div>
+
+            {savingsGoals.length > 0 ? (
+              <div style={{display:"grid",gap:"10px",marginTop:"14px"}}>
+                {savingsGoals.map(goal => {
+                  const pct = Math.min(100, Math.round((goal.amount / goal.target) * 100));
+                  return (
+                    <div className="goal-item-box" key={goal.id}>
+                      <div className="goal-item-header">
+                        <strong>{goal.name}</strong>
+                        <span>{pct}% alcanzado</span>
+                      </div>
+                      <div className="goal-item-bar">
+                        <div className="goal-item-bar-fill" style={{width:`${pct}%`}}/>
+                      </div>
+                      <div className="goal-item-footer">
+                        <span>S/ {goal.amount.toLocaleString("es-PE")} de S/ {goal.target.toLocaleString("es-PE")}</span>
+                        <button className="add-subexpense" style={{padding:"3px 8px",fontSize:"10px"}} onClick={()=>setSavingContributionTarget(goal.id)}>
+                          + Aporte
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="goal-tip" style={{marginTop:"14px"}}>
+                <Target size={20}/>
+                <div>
+                  <strong>¿Tienes un objetivo en mente?</strong>
+                  <span>Crea metas (ej. Viaje, Computadora, Emergencia) para automatizar tu ahorro mes a mes.</span>
+                </div>
+              </div>
+            )}
           </article>
         </section>
 
-        <section className="accounts"><div className="section-heading"><div><h2>Mis cuentas</h2><p>Conecta y controla todo desde un solo lugar.</p></div><button onClick={()=>setNotice("Conexión bancaria lista para configurar con APIs oficiales")}><Plus size={17}/>Conectar cuenta</button></div><article className="card empty-state"><Landmark/><strong>Aún no hay cuentas conectadas</strong><span>Cuando agregues una, aparecerá aquí con su saldo real.</span></article></section>
+        {/* 4. Nuevo Widget de Almacén y Control de Precios */}
+        <section className="warehouse-widget-card">
+          <div className="warehouse-widget-head">
+            <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+              <div style={{width:"38px",height:"38px",borderRadius:"10px",background:"#0284c7",color:"#fff",display:"grid",placeItems:"center"}}>
+                <Package size={20}/>
+              </div>
+              <div>
+                <h3 style={{fontSize:"16px",fontWeight:800,margin:0,color:"#0c4a6e"}}>
+                  Almacén, Despensa e Insumos ({warehouseItems.length} productos en catálogo)
+                </h3>
+                <p style={{fontSize:"12px",color:"#0369a1",margin:"2px 0 0 0"}}>
+                  Control de compras por volumen, unidades de medida y variaciones de precio en tiempo real.
+                </p>
+              </div>
+            </div>
+            <button className="primary" style={{background:"#0284c7",borderColor:"#0284c7",height:"38px",padding:"0 16px",fontSize:"12px"}} onClick={()=>activateModule("Almacén")}>
+              Ir al Almacén <ArrowRight size={14}/>
+            </button>
+          </div>
+
+          <div className="warehouse-widget-stats">
+            <div className="warehouse-widget-stat">
+              <span>Compras en {monthNames[selectedMonth]}</span>
+              <strong>{warehouseMonthPurchases.length} registros (S/ {warehouseMonthSpend.toLocaleString("es-PE",{minimumFractionDigits:2})})</strong>
+            </div>
+            <div className="warehouse-widget-stat">
+              <span>Variación de Precios Detectada</span>
+              <strong style={{display:"flex",alignItems:"center",gap:"8px",fontSize:"14px"}}>
+                {warehouseSavingsCount > 0 && <span style={{color:"#15803d"}}>🔻 {warehouseSavingsCount} bajaron</span>}
+                {warehouseInflationCount > 0 && <span style={{color:"#b91c1c"}}>🔺 {warehouseInflationCount} subieron</span>}
+                {warehouseSavingsCount === 0 && warehouseInflationCount === 0 && <span style={{color:"#0369a1"}}>Precios estables</span>}
+              </strong>
+            </div>
+            <div className="warehouse-widget-stat">
+              <span>Acción Rápida</span>
+              <div style={{display:"flex",gap:"6px",marginTop:"4px"}}>
+                <button className="outline" style={{width:"auto",margin:0,padding:"4px 10px",fontSize:"11px",borderColor:"#bae6fd",color:"#0369a1"}} onClick={()=>warehouseItems.length > 0 ? openBuyWarehouseModal(warehouseItems[0]) : setWarehouseModal({open:true,item:null})}>
+                  + Registrar Compra
+                </button>
+                <button className="outline" style={{width:"auto",margin:0,padding:"4px 10px",fontSize:"11px",borderColor:"#bae6fd",color:"#0369a1"}} onClick={()=>setWarehouseModal({open:true,item:null})}>
+                  + Nuevo Producto
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 5. Cuentas Financieras con Saldos Reales */}
+        <section className="accounts">
+          <div className="section-heading">
+            <div>
+              <h2>Mis cuentas y billeteras (Saldos en tiempo real)</h2>
+              <p>Seguimiento del saldo neto y flujo transaccional distribuido en tus cuentas bancarias y efectivo.</p>
+            </div>
+            <button onClick={()=>activateModule("Cuentas")}>
+              <Landmark size={15}/> Administrar cuentas
+            </button>
+          </div>
+
+          <div className="account-cards-grid">
+            {accountBalances.map(acc => (
+              <div className="account-card-box" key={acc.name}>
+                <div className="account-card-top">
+                  <div className="account-logo-badge" style={{background:acc.bg,color:acc.color}}>
+                    {acc.icon}
+                  </div>
+                  <div className="account-card-meta">
+                    <strong>{acc.name}</strong>
+                    <span>{acc.txCount} movimientos en {monthNames[selectedMonth]}</span>
+                  </div>
+                  <div className="account-card-balance" style={{color:acc.balance >= 0 ? "var(--ink)" : "#dc2626"}}>
+                    S/ {acc.balance.toLocaleString("es-PE",{minimumFractionDigits:2})}
+                  </div>
+                </div>
+                <div className="account-card-flow">
+                  <span>Ingresos mes: <strong className="in">+S/ {acc.monthIncome.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong></span>
+                  <span>Gastos mes: <strong className="out">−S/ {acc.monthExpense.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong></span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
         </>}
       </div>
     </main>
