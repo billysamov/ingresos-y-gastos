@@ -500,6 +500,7 @@
 
   /* MODALES Y FORMULARIOS EN MÓVIL */
   .modal-backdrop {
+    z-index: 9999 !important;
     padding: 10px !important;
     align-items: flex-end !important;
   }
