@@ -534,6 +534,15 @@ export default function Home() {
             if (Array.isArray(parsed)) setClosedPeriods(parsed);
           } catch {}
         }
+        const savedMonthAccess = localStorage.getItem("finanza_month_access");
+        if (savedMonthAccess) {
+          try {
+            const parsed = JSON.parse(savedMonthAccess);
+            if (parsed && typeof parsed.year === "number" && typeof parsed.month === "number") {
+              local.monthAccess = parsed;
+            }
+          } catch {}
+        }
         const savedFixedStatus = localStorage.getItem("finanza_fixed_status");
         if (savedFixedStatus) {
           try {
@@ -562,7 +571,7 @@ export default function Home() {
               expenseGroups: remoteGroups,
               profile: typeof remote.profile === "object" && remote.profile ? { ...{ fullName: "Mi perfil", currency: "PEN" }, ...(remote.profile as Profile) } : { fullName: "Mi perfil", currency: "PEN" },
               budgets: Array.isArray(remote.budgets) ? (remote.budgets as Budget[]) : [],
-              monthAccess: typeof remote.monthAccess === "object" && remote.monthAccess ? (remote.monthAccess as MonthAccess) : {year:2026,month:7},
+              monthAccess: typeof remote.monthAccess === "object" && remote.monthAccess ? (remote.monthAccess as MonthAccess) : local.monthAccess,
               categories: Array.from(new Set([...defaultCategories, ...(Array.isArray(remote.categories) ? (remote.categories as string[]) : [])])).filter(c => c !== "Ahorro"),
               incomeCategories: Array.from(new Set([...defaultIncomeCategories, ...(Array.isArray(remote.incomeCategories) ? (remote.incomeCategories as string[]) : [])])),
             };
@@ -575,7 +584,7 @@ export default function Home() {
       const plannedFixed=source.fixedExpenses.map(item=>({...item,requiresConfirmation:item.requiresConfirmation??true}));
       const plannedMonthly=source.monthlyExpenses.map(item=>({...item,requiresConfirmation:item.requiresConfirmation??true}));
       const plannedGroups=source.expenseGroups.map(group=>({...group,items:group.items.map(item=>({...item,requiresConfirmation:item.requiresConfirmation??true}))}));
-      setTransactions(source.transactions);setSavings(source.savings);setSavingsGoals(source.savingsGoals);setFixedExpenses(plannedFixed);setMonthlyExpenses(plannedMonthly);setExpenseGroups(plannedGroups);setProfile(source.profile);setBudgets(source.budgets);setMonthAccess(source.monthAccess);setCategories(source.categories);setIncomeCategories(source.incomeCategories);
+      setTransactions(source.transactions);setSavings(source.savings);setSavingsGoals(source.savingsGoals);setFixedExpenses(plannedFixed);setMonthlyExpenses(plannedMonthly);setExpenseGroups(plannedGroups);setProfile(source.profile);setBudgets(source.budgets);setMonthAccess(source.monthAccess);setSelectedYear(source.monthAccess.year);setSelectedMonth(source.monthAccess.month);setCategories(source.categories);setIncomeCategories(source.incomeCategories);
       setReady(true);
     }
     void hydrate();
@@ -1359,9 +1368,10 @@ export default function Home() {
     setWarehouseItems(defaultWarehouseItems);
     if (typeof window !== "undefined") {
       localStorage.removeItem("finanza_closed_periods");
+      localStorage.removeItem("finanza_month_access");
       localStorage.setItem("finanza_warehouse_items", JSON.stringify(defaultWarehouseItems));
     }
-    setNotice("🔄 Período restablecido a Agosto 2026.");
+    setNotice("🔄 Período restablecido a Agosto 2026 (Mes en Curso).");
   }
 
   function openCloseMonthModal() {
@@ -1422,11 +1432,15 @@ export default function Home() {
 
     // Desbloquear nuevo período
     const nextIsLater = toYear > monthAccess.year || (toYear === monthAccess.year && toMonth > monthAccess.month);
+    const newMonthAccess = nextIsLater ? { year: toYear, month: toMonth } : monthAccess;
     if (nextIsLater) {
-      setMonthAccess({ year: toYear, month: toMonth });
+      setMonthAccess(newMonthAccess);
     }
     setSelectedYear(toYear);
     setSelectedMonth(toMonth);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("finanza_month_access", JSON.stringify(newMonthAccess));
+    }
 
     // Inicializar estado de pagos fijos en pendiente para el nuevo mes
     setPeriodFixedStatus(prev => ({
@@ -2147,13 +2161,37 @@ export default function Home() {
           <button className="icon-button"><Bell size={19}/><i/></button>
           
           {isPeriodClosed(activePeriod) ? (
-            <span className="month-status-pill closed" title="Este período está archivado">
-              <Lock size={12}/> Mes Cerrado
-            </span>
-          ) : (
-            <span className="month-status-pill active" title="Período en curso">
+            <button
+              className="month-status-pill closed"
+              type="button"
+              style={{cursor:"pointer", border:"1px solid #fde68a"}}
+              title="Período archivado. Haz clic para ir al Mes en Curso"
+              onClick={() => {
+                setSelectedYear(monthAccess.year);
+                setSelectedMonth(monthAccess.month);
+                setNotice(`⚡ Saltaste a ${monthNames[monthAccess.month]} ${monthAccess.year} (Mes en Curso)`);
+              }}
+            >
+              <Lock size={12}/> Mes Cerrado · Ir a Mes en Curso ⚡
+            </button>
+          ) : (selectedYear === monthAccess.year && selectedMonth === monthAccess.month) ? (
+            <span className="month-status-pill active" title="Período en curso actual">
               <Check size={12}/> Mes en Curso
             </span>
+          ) : (
+            <button
+              className="month-status-pill future"
+              type="button"
+              style={{cursor:"pointer", border:"1px solid #cbd5e1"}}
+              title="Haz clic para volver al Mes en Curso"
+              onClick={() => {
+                setSelectedYear(monthAccess.year);
+                setSelectedMonth(monthAccess.month);
+                setNotice(`⚡ Regresaste a ${monthNames[monthAccess.month]} ${monthAccess.year} (Mes en Curso)`);
+              }}
+            >
+              📅 Ir a Mes en Curso ({monthNames[monthAccess.month].slice(0,3)}) ⚡
+            </button>
           )}
 
           <div className="month-picker">
@@ -2171,24 +2209,43 @@ export default function Home() {
                   const enabled=isPeriodEnabled(selectedYear,index);
                   const pStr=`${selectedYear}-${String(index+1).padStart(2,"0")}`;
                   const isClosed=closedPeriods.includes(pStr);
+                  const isCurrent=selectedYear===monthAccess.year && index===monthAccess.month;
                   return <button
                     type="button"
                     disabled={!enabled}
-                    className={index===selectedMonth?"selected":""}
+                    className={`${index===selectedMonth?"selected":""} ${isCurrent?"current-month-option":""}`}
                     key={name}
+                    title={isCurrent ? "Mes en Curso actual" : isClosed ? "Mes archivado/cerrado" : undefined}
                     onClick={()=>{
                       if(!enabled) return;
                       setSelectedMonth(index);
                       if (selectedYear > monthAccess.year || (selectedYear === monthAccess.year && index > monthAccess.month)) {
                         setMonthAccess({ year: selectedYear, month: index });
+                        if (typeof window !== "undefined") {
+                          localStorage.setItem("finanza_month_access", JSON.stringify({ year: selectedYear, month: index }));
+                        }
                       }
                       setShowMonthPicker(false);
                       setNotice(`📅 Período seleccionado: ${name} ${selectedYear}`);
                     }}
                   >
-                    {name.slice(0,3)} {isClosed ? "🔒" : ""}
+                    {name.slice(0,3)} {isClosed ? "🔒" : isCurrent ? "🟢" : ""}
                   </button>;
                 })}
+              </div>
+              <div style={{marginTop:"8px",paddingTop:"8px",borderTop:"1px solid #f1f5f9"}}>
+                <button
+                  type="button"
+                  style={{width:"100%",border:0,background:"#eff6ff",color:"var(--blue)",borderRadius:"8px",padding:"6px 8px",fontSize:"11px",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:"6px"}}
+                  onClick={()=>{
+                    setSelectedYear(monthAccess.year);
+                    setSelectedMonth(monthAccess.month);
+                    setShowMonthPicker(false);
+                    setNotice(`⚡ Regresaste a ${monthNames[monthAccess.month]} ${monthAccess.year} (Mes en Curso)`);
+                  }}
+                >
+                  ⚡ Ir a Mes en Curso ({monthNames[monthAccess.month].slice(0,3)} {monthAccess.year})
+                </button>
               </div>
             </div>}
           </div>
