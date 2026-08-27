@@ -35,9 +35,27 @@ function clientId(value: string) {
 }
 function parseNotes(notes: unknown) {
   const text = String(notes ?? "");
-  const category = text.match(/Categor[íi]a:\s*([^.]*)/i)?.[1]?.trim();
-  const account = text.match(/Cuenta:\s*([^.]*)/i)?.[1]?.trim();
-  return { category, account };
+  let parsedMeta: { quantity?: number; unit?: string; unitPrice?: number; warehouseItemId?: number } = {};
+  if (text.startsWith("{") && text.endsWith("}")) {
+    try {
+      parsedMeta = JSON.parse(text);
+    } catch {}
+  }
+  const category = parsedMeta.quantity !== undefined ? undefined : text.match(/Categor[íi]a:\s*([^.]*)/i)?.[1]?.trim();
+  const account = parsedMeta.quantity !== undefined ? undefined : text.match(/Cuenta:\s*([^.]*)/i)?.[1]?.trim();
+  return { category, account, ...parsedMeta };
+}
+
+function formatNotes(row: JsonRow) {
+  if (row.quantity !== undefined || row.unit !== undefined || row.unitPrice !== undefined || row.warehouseItemId !== undefined) {
+    return JSON.stringify({
+      quantity: row.quantity,
+      unit: row.unit,
+      unitPrice: row.unitPrice,
+      warehouseItemId: row.warehouseItemId
+    });
+  }
+  return undefined;
 }
 
 /** Lee las tablas normalizadas. finanza_state no participa en la aplicación. */
@@ -55,13 +73,22 @@ export async function loadRelationalFinanceState(): Promise<StoredState> {
   const config = settings[0] ?? {};
   const mapTransaction = (row: JsonRow) => {
     const fallback = parseNotes(row.notes);
-    return { id: clientId(String(row.id)), dbId: row.id, dbUpdatedAt: row.updated_at, title: row.description ?? "Movimiento", category: row.category_name ?? fallback.category ?? "Otros", account: row.account_name ?? fallback.account ?? "Efectivo", date: "Ahora", amount: Number(row.amount ?? 0), kind: row.transaction_type, period: row.period_key ?? initialPeriod, planned: Boolean(row.is_planned), requiresConfirmation: Boolean(row.requires_confirmation), completed: Boolean(row.completed) };
+    return { id: clientId(String(row.id)), dbId: row.id, dbUpdatedAt: row.updated_at, title: row.description ?? "Movimiento", category: row.category_name ?? fallback.category ?? "Otros", account: row.account_name ?? fallback.account ?? "Efectivo", date: "Ahora", amount: Number(row.amount ?? 0), quantity: fallback.quantity, unit: fallback.unit, unitPrice: fallback.unitPrice, warehouseItemId: fallback.warehouseItemId, kind: row.transaction_type, period: row.period_key ?? initialPeriod, planned: Boolean(row.is_planned), requiresConfirmation: Boolean(row.requires_confirmation), completed: Boolean(row.completed) };
   };
   return {
     transactions: transactions.map(mapTransaction),
-    fixedExpenses: fixedExpenses.map(row => ({ id: clientId(String(row.id)), dbId: row.id, dbUpdatedAt: row.updated_at, name: row.name ?? "Gasto fijo", category: row.category_name ?? "Otros", account: row.account_name ?? "Efectivo", amount: Number(row.amount ?? 0), requiresConfirmation: row.requires_confirmation !== false, completed: Boolean(row.completed) })),
-    monthlyExpenses: monthlyExpenses.map(row => ({ id: clientId(String(row.id)), dbId: row.id, dbUpdatedAt: row.updated_at, name: row.name ?? "Gasto mensual", category: row.category_name ?? row.notes ?? "Otros", account: row.account_name ?? "Efectivo", amount: Number(row.amount ?? 0), period: row.period_key ?? String(row.expense_month ?? initialPeriod).slice(0, 7), requiresConfirmation: row.requires_confirmation !== false, completed: Boolean(row.completed) })),
-    expenseGroups: groups.map(group => ({ id: clientId(String(group.id)), dbId: group.id, dbUpdatedAt: group.updated_at, name: group.name ?? "Categoría", budget: Number(group.monthly_budget ?? 0), items: items.filter(item => item.expense_group_id === group.id).map(item => ({ id: clientId(String(item.id)), dbId: item.id, dbUpdatedAt: item.updated_at, name: item.name ?? "Subgasto", category: item.category ?? "Otros", account: item.account_name ?? "Efectivo", amount: Number(item.amount ?? 0), period: item.period_key ?? initialPeriod, requiresConfirmation: item.requires_confirmation !== false, completed: Boolean(item.completed) })) })),
+    fixedExpenses: fixedExpenses.map(row => {
+      const fallback = parseNotes(row.notes);
+      return { id: clientId(String(row.id)), dbId: row.id, dbUpdatedAt: row.updated_at, name: row.name ?? "Gasto fijo", category: row.category_name ?? "Otros", account: row.account_name ?? "Efectivo", amount: Number(row.amount ?? 0), quantity: fallback.quantity, unit: fallback.unit, unitPrice: fallback.unitPrice, warehouseItemId: fallback.warehouseItemId, requiresConfirmation: row.requires_confirmation !== false, completed: Boolean(row.completed) };
+    }),
+    monthlyExpenses: monthlyExpenses.map(row => {
+      const fallback = parseNotes(row.notes);
+      return { id: clientId(String(row.id)), dbId: row.id, dbUpdatedAt: row.updated_at, name: row.name ?? "Gasto mensual", category: row.category_name ?? (fallback.quantity !== undefined ? "Otros" : row.notes) ?? "Otros", account: row.account_name ?? "Efectivo", amount: Number(row.amount ?? 0), quantity: fallback.quantity, unit: fallback.unit, unitPrice: fallback.unitPrice, warehouseItemId: fallback.warehouseItemId, period: row.period_key ?? String(row.expense_month ?? initialPeriod).slice(0, 7), requiresConfirmation: row.requires_confirmation !== false, completed: Boolean(row.completed) };
+    }),
+    expenseGroups: groups.map(group => ({ id: clientId(String(group.id)), dbId: group.id, dbUpdatedAt: group.updated_at, name: group.name ?? "Categoría", budget: Number(group.monthly_budget ?? 0), items: items.filter(item => item.expense_group_id === group.id).map(item => {
+      const fallback = parseNotes(item.notes);
+      return { id: clientId(String(item.id)), dbId: item.id, dbUpdatedAt: item.updated_at, name: item.name ?? "Subgasto", category: item.category ?? "Otros", account: item.account_name ?? "Efectivo", amount: Number(item.amount ?? 0), quantity: fallback.quantity, unit: fallback.unit, unitPrice: fallback.unitPrice, warehouseItemId: fallback.warehouseItemId, period: item.period_key ?? initialPeriod, requiresConfirmation: item.requires_confirmation !== false, completed: Boolean(item.completed) };
+    }) })),
     savings: Number(savingsGoals.find(row => row.name === "Ahorro personal")?.current_amount ?? 0),
     savingsGoals: savingsGoals.filter(row => row.name !== "Ahorro personal").map(row => ({ id: clientId(String(row.id)), dbId: row.id, dbUpdatedAt: row.updated_at, name: row.name ?? "Meta", target: Number(row.target_amount ?? 0), amount: Number(row.current_amount ?? 0) })),
     profile: { fullName: profile.full_name ?? "Mi perfil", currency: profile.currency_code ?? "PEN", monthlySalary: Number(config.monthly_salary ?? 0), autoRegisterSalary: Boolean(config.auto_register_salary) },
@@ -104,14 +131,14 @@ export async function saveRelationalFinanceState(data: FinanceData) {
   ]);
   // Cada fila conserva su UUID. Las inserciones futuras se reconocen por sus datos
   // y se reciben con UUID al recargar desde Supabase.
-  await Promise.all(data.transactions.map(row => patchOrInsert("transactions", row.dbId, { profile_id: profileId, transaction_type: row.kind, description: row.title, amount: row.amount, occurred_at: new Date().toISOString(), period_key: row.period ?? period, category_name: row.category, account_name: row.account, is_planned: Boolean(row.planned), requires_confirmation: Boolean(row.requiresConfirmation), completed: row.completed !== false }, row.id, row.dbUpdatedAt)));
-  await Promise.all(data.fixedExpenses.map(row => patchOrInsert("fixed_expenses", row.dbId, { profile_id: profileId, name: row.name, amount: row.amount, frequency: "monthly", category_name: row.category, account_name: row.account, requires_confirmation: row.requiresConfirmation !== false, completed: Boolean(row.completed) }, row.id, row.dbUpdatedAt)));
-  await Promise.all(data.monthlyExpenses.map(row => patchOrInsert("monthly_expenses", row.dbId, { profile_id: profileId, name: row.name, amount: row.amount, expense_month: `${row.period ?? period}-01`, category_name: row.category, account_name: row.account, period_key: row.period ?? period, requires_confirmation: row.requiresConfirmation !== false, completed: Boolean(row.completed) }, row.id, row.dbUpdatedAt)));
+  await Promise.all(data.transactions.map(row => patchOrInsert("transactions", row.dbId, { profile_id: profileId, transaction_type: row.kind, description: row.title, amount: row.amount, occurred_at: new Date().toISOString(), period_key: row.period ?? period, category_name: row.category, account_name: row.account, is_planned: Boolean(row.planned), requires_confirmation: Boolean(row.requiresConfirmation), completed: row.completed !== false, notes: formatNotes(row) }, row.id, row.dbUpdatedAt)));
+  await Promise.all(data.fixedExpenses.map(row => patchOrInsert("fixed_expenses", row.dbId, { profile_id: profileId, name: row.name, amount: row.amount, frequency: "monthly", category_name: row.category, account_name: row.account, requires_confirmation: row.requiresConfirmation !== false, completed: Boolean(row.completed), notes: formatNotes(row) }, row.id, row.dbUpdatedAt)));
+  await Promise.all(data.monthlyExpenses.map(row => patchOrInsert("monthly_expenses", row.dbId, { profile_id: profileId, name: row.name, amount: row.amount, expense_month: `${row.period ?? period}-01`, category_name: row.category, account_name: row.account, period_key: row.period ?? period, requires_confirmation: row.requiresConfirmation !== false, completed: Boolean(row.completed), notes: formatNotes(row) }, row.id, row.dbUpdatedAt)));
   for (const group of data.expenseGroups) {
     const result = await patchOrInsert("expense_groups", group.dbId, { profile_id: profileId, name: group.name, monthly_budget: group.budget, period_key: period }, group.id, group.dbUpdatedAt);
     const groupId = group.dbId ?? remoteIds.get(`expense_groups:${group.id}`) ?? result?.[0]?.id;
     if (!groupId) continue;
-    await Promise.all((Array.isArray(group.items) ? group.items : []).map((item: JsonRow) => patchOrInsert("expense_items", item.dbId, { expense_group_id: groupId, name: item.name, category: item.category, amount: item.amount, account_name: item.account ?? "Efectivo", period_key: item.period ?? period, requires_confirmation: item.requiresConfirmation !== false, completed: Boolean(item.completed) }, item.id, item.dbUpdatedAt)));
+    await Promise.all((Array.isArray(group.items) ? group.items : []).map((item: JsonRow) => patchOrInsert("expense_items", item.dbId, { expense_group_id: groupId, name: item.name, category: item.category, amount: item.amount, account_name: item.account ?? "Efectivo", period_key: item.period ?? period, requires_confirmation: item.requiresConfirmation !== false, completed: Boolean(item.completed), notes: formatNotes(item) }, item.id, item.dbUpdatedAt)));
   }
   const remoteGroups = await request(`expense_groups?profile_id=eq.${profileId}&select=id`) as JsonRow[];
   const activeGroupIds = new Set(data.expenseGroups.map(group => String(group.dbId ?? remoteIds.get(`expense_groups:${group.id}`) ?? "")));
