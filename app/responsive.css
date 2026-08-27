@@ -502,6 +502,22 @@
     grid-template-columns: 1fr !important;
     gap: 10px !important;
   }
+  .unit-inputs-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  .subexpense-simple-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  .subexpense-simple-grid > label:first-child {
+    grid-column: 1 / -1 !important;
+  }
+  .subexpense-simple-grid .expense-delete {
+    grid-column: 1 / -1 !important;
+    justify-self: flex-end !important;
+    margin-bottom: 0 !important;
+  }
   .subexpense-inputs-grid {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;

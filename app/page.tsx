@@ -348,6 +348,36 @@ function getWarehouseUnitCost(item: WarehouseItem): number {
   return item.packageFactor > 0 ? (item.estimatedPrice / item.packageFactor) : item.estimatedPrice;
 }
 
+const physicalCategoryKeywords = [
+  "alimentación",
+  "alimentacion",
+  "abarrotes",
+  "frutas",
+  "verduras",
+  "comida",
+  "mercado",
+  "supermercado",
+  "despensa",
+  "carnes",
+  "pollo",
+  "pescado",
+  "lácteos",
+  "lacteos",
+  "panadería",
+  "panaderia",
+  "pan",
+  "bebidas",
+  "limpieza",
+  "insumos",
+  "bodega"
+];
+
+function isPhysicalCategory(category?: string): boolean {
+  if (!category) return false;
+  const norm = category.trim().toLowerCase();
+  return physicalCategoryKeywords.some(kw => norm.includes(kw));
+}
+
 const commonUnits = [
   { value: "kg", label: "kg (Kilogramos)" },
   { value: "g", label: "g (Gramos)" },
@@ -428,7 +458,7 @@ function Metric({label,value,delta,icon,tone,progress}:{label:string,value:numbe
 export default function Home() {
   function ModuleHeading({eyebrow,title,text,action}:{eyebrow:string,title:string,text:string,action?:React.ReactNode}) { return <div className="page-heading module-heading"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{text}</p></div>{action}</div> }
   function MiniStat({label,value,tone="blue",plain=false}:{label:string,value:number,tone?:string,plain?:boolean}) { return <article className="card mini-stat"><span>{label}</span><strong>{plain?value:`S/ ${value.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</strong><i className={tone}/></article> }
-  function TransactionList({items,onDelete,onToggle,onEdit}:{items:Tx[],onDelete:(id:number)=>void;onToggle:(item:Tx)=>void;onEdit:(item:Tx)=>void}) { return <div className="tx-list">{items.map(t=><div className="tx" key={`${t.expenseSource??"transaction"}-${t.id}`}><div className={`tx-icon ${t.kind}`}>{categoryIcon(t.category,t.kind)}</div><div className="tx-main"><div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}><strong>{t.title}</strong>{t.quantity&&t.quantity>0&&<span style={{fontSize:"11px",padding:"1px 6px",borderRadius:"4px",background:"#f1f5f9",color:"#475569",fontWeight:600}}>{t.quantity} {t.unit||"u."}{t.unitPrice?` · S/ ${t.unitPrice.toFixed(2)}/${t.unit||"u."}`:""}</span>}{t.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}</div>{t.expenseSource&&<small className="transaction-origin">{expenseSourceLabel(t.expenseSource,t.groupName)}</small>}<span>{t.category}</span></div><div className="tx-date">{t.requiresConfirmation?(t.completed?"Realizado":"Pendiente"):t.date}</div><div className={`tx-amount ${t.kind}`}>{t.kind==="income"?"+":"−"} S/ {t.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</div>{t.requiresConfirmation&&<button className={`completion-toggle ${t.completed?"done":""}`} aria-label={`${t.completed?"Marcar pendiente":"Marcar realizado"} ${t.title}`} title={t.completed?"Realizado: volver a pendiente":"Marcar como realizado"} onClick={()=>onToggle(t)}>{t.completed?<Check size={15}/>:<Circle size={15}/>}</button>}{t.id>=0&&<button className="edit-tx" aria-label={`Editar ${t.title}`} title="Editar movimiento" onClick={()=>onEdit(t)}><Pencil size={14}/></button>}<button className="delete-tx" aria-label={`Eliminar ${t.title}`} onClick={()=>onDelete(t.id)}><Trash2 size={14}/></button></div>)}{items.length===0&&<div className="empty-state"><Search size={22}/><strong>No encontramos movimientos</strong><span>No hay coincidencias en {monthNames[selectedMonth]} {selectedYear}.</span></div>}</div> }
+  function TransactionList({items,onDelete,onToggle,onEdit}:{items:Tx[],onDelete:(id:number)=>void;onToggle:(item:Tx)=>void;onEdit:(item:Tx)=>void}) { return <div className="tx-list">{items.map(t=><div className="tx" key={`${t.expenseSource??"transaction"}-${t.id}`}><div className={`tx-icon ${t.kind}`}>{categoryIcon(t.category,t.kind)}</div><div className="tx-main"><div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}><strong>{t.title}</strong>{t.quantity&&t.quantity>0&&(isPhysicalCategory(t.category)||Boolean(t.warehouseItemId))&&<span style={{fontSize:"11px",padding:"1px 6px",borderRadius:"4px",background:"#f1f5f9",color:"#475569",fontWeight:600}}>{t.quantity} {t.unit||"u."}{t.unitPrice?` · S/ ${t.unitPrice.toFixed(2)}/${t.unit||"u."}`:""}</span>}{t.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}</div>{t.expenseSource&&<small className="transaction-origin">{expenseSourceLabel(t.expenseSource,t.groupName)}</small>}<span>{t.category}</span></div><div className="tx-date">{t.requiresConfirmation?(t.completed?"Realizado":"Pendiente"):t.date}</div><div className={`tx-amount ${t.kind}`}>{t.kind==="income"?"+":"−"} S/ {t.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</div>{t.requiresConfirmation&&<button className={`completion-toggle ${t.completed?"done":""}`} aria-label={`${t.completed?"Marcar pendiente":"Marcar realizado"} ${t.title}`} title={t.completed?"Realizado: volver a pendiente":"Marcar como realizado"} onClick={()=>onToggle(t)}>{t.completed?<Check size={15}/>:<Circle size={15}/>}</button>}{t.id>=0&&<button className="edit-tx" aria-label={`Editar ${t.title}`} title="Editar movimiento" onClick={()=>onEdit(t)}><Pencil size={14}/></button>}<button className="delete-tx" aria-label={`Eliminar ${t.title}`} onClick={()=>onDelete(t.id)}><Trash2 size={14}/></button></div>)}{items.length===0&&<div className="empty-state"><Search size={22}/><strong>No encontramos movimientos</strong><span>No hay coincidencias en {monthNames[selectedMonth]} {selectedYear}.</span></div>}</div> }
 
   const [active, setActive] = useState("Resumen");
   const [editingMovement, setEditingMovement] = useState<Tx|null>(null);
@@ -749,7 +779,20 @@ export default function Home() {
     setMovementUnit("unidad");
     setMovementUnitPrice("");
     setSelectedMovementWarehouseId(null);
+    setMovementCategory(defaultCategories.find(c => !isPhysicalCategory(c)) || defaultCategories[0]);
     setShowModal(true);
+  }
+
+  function openAddExpenseModal(kind: "fixed" | "monthly" | "group") {
+    setExpenseModalWarehouseId(null);
+    setExpenseModalTitle("");
+    setExpenseModalQuantity("1");
+    setExpenseModalUnit("unidad");
+    setExpenseModalUnitPrice("");
+    setExpenseModalAmount("");
+    const defaultCat = kind === "fixed" ? (categories.find(c => !isPhysicalCategory(c)) || "Servicios") : categories[0];
+    setExpenseModalCategory(defaultCat);
+    setExpenseModal({ kind });
   }
 
   function closeMovementModal() {
@@ -1036,15 +1079,16 @@ export default function Home() {
     const title=String(fd.get("title")||movementTitle).trim();
     const category=String(fd.get("category")||movementCategory);
     const amount=Number(fd.get("amount")||movementAmount);
-    const qty = kind === "expense" ? (Number(fd.get("quantity") || movementQuantity) || 1) : undefined;
-    const unit = kind === "expense" ? String(fd.get("unit") || movementUnit || "unidad") : undefined;
-    const uPrice = kind === "expense" ? (Number(fd.get("unitPrice") || movementUnitPrice) || (amount && qty ? amount / qty : undefined)) : undefined;
+    const isPhysical = kind === "expense" && expenseType !== "fixed" && (Boolean(selectedMovementWarehouseId) || isPhysicalCategory(category));
+    const qty = isPhysical ? (Number(fd.get("quantity") || movementQuantity) || 1) : undefined;
+    const unit = isPhysical ? String(fd.get("unit") || movementUnit || "unidad") : undefined;
+    const uPrice = isPhysical ? (Number(fd.get("unitPrice") || movementUnitPrice) || (amount && qty ? amount / qty : undefined)) : undefined;
     const source=kind==="expense"&&expenseType!=="group"?expenseType:undefined;
     const planned=kind==="expense"&&fd.get("planned")==="on";
     const requiresConfirmation=planned&&fd.get("requiresConfirmation")==="on";
 
     let trendMsg = "";
-    if (kind === "expense" && selectedMovementWarehouseId && amount > 0) {
+    if (kind === "expense" && isPhysical && selectedMovementWarehouseId && amount > 0) {
       const res = recordWarehousePurchaseHistory(selectedMovementWarehouseId, amount, activePeriod, {
         packageFactor: qty,
         packageType: `${qty} ${unit}`,
@@ -1054,11 +1098,11 @@ export default function Home() {
     }
 
     setTransactions(prev => {
-      const next: Tx[] = [{ id, title, category, date:"Ahora", amount, quantity: qty, unit, unitPrice: uPrice ? Number(uPrice.toFixed(2)) : undefined, kind, period:activePeriod, expenseSource:source, sourceId:source?id:undefined, savingDestination:kind==="expense"&&category==="Ahorro"?savingDestination:undefined, planned, requiresConfirmation, completed:planned?false:true, warehouseItemId:selectedMovementWarehouseId||undefined }, ...prev];
+      const next: Tx[] = [{ id, title, category, date:"Ahora", amount, quantity: qty, unit, unitPrice: uPrice ? Number(uPrice.toFixed(2)) : undefined, kind, period:activePeriod, expenseSource:source, sourceId:source?id:undefined, savingDestination:kind==="expense"&&category==="Ahorro"?savingDestination:undefined, planned, requiresConfirmation, completed:planned?false:true, warehouseItemId:isPhysical ? (selectedMovementWarehouseId||undefined) : undefined }, ...prev];
       return next;
     });
-    if(kind==="expense"&&expenseType==="fixed") setFixedExpenses(items=>[{id,name:title,category,amount,quantity:qty,unit,unitPrice: uPrice ? Number(uPrice.toFixed(2)) : undefined,transactionId:id,requiresConfirmation,completed:planned?false:true,warehouseItemId:selectedMovementWarehouseId||undefined},...items]);
-    if(kind==="expense"&&expenseType==="monthly") setMonthlyExpenses(items=>[{id,name:title,category,amount,quantity:qty,unit,unitPrice: uPrice ? Number(uPrice.toFixed(2)) : undefined,period:activePeriod,transactionId:id,requiresConfirmation,completed:planned?false:true,warehouseItemId:selectedMovementWarehouseId||undefined},...items]);
+    if(kind==="expense"&&expenseType==="fixed") setFixedExpenses(items=>[{id,name:title,category,amount,transactionId:id,requiresConfirmation,completed:planned?false:true},...items]);
+    if(kind==="expense"&&expenseType==="monthly") setMonthlyExpenses(items=>[{id,name:title,category,amount,quantity:qty,unit,unitPrice: uPrice ? Number(uPrice.toFixed(2)) : undefined,period:activePeriod,transactionId:id,requiresConfirmation,completed:planned?false:true,warehouseItemId:isPhysical ? (selectedMovementWarehouseId||undefined) : undefined},...items]);
     if(kind==="expense"&&category==="Ahorro") {
       if(savingDestination==="general") setSavings(value=>value+amount);
       else setSavingsGoals(items=>items.map(goal=>goal.id===savingDestination?{...goal,amount:Math.min(goal.target,goal.amount+amount)}:goal));
@@ -1075,14 +1119,15 @@ export default function Home() {
     const title=String(form.get("title")||"").trim();
     const category=String(form.get("category")||"Otros");
     const amount=Number(form.get("amount")||0);
-    const quantity=Number(form.get("quantity")) || undefined;
-    const unit=String(form.get("unit")||"") || undefined;
-    const unitPrice=Number(form.get("unitPrice")) || (amount && quantity ? amount / quantity : undefined);
+    const isPhysical = (editingMovement.kind === "expense") && editingMovement.expenseSource !== "fixed" && (Boolean(editingMovement.warehouseItemId) || isPhysicalCategory(category) || Boolean(form.get("quantity")));
+    const quantity = isPhysical ? (Number(form.get("quantity")) || undefined) : undefined;
+    const unit = isPhysical ? (String(form.get("unit")||"") || undefined) : undefined;
+    const unitPrice = isPhysical ? (Number(form.get("unitPrice")) || (amount && quantity ? amount / quantity : undefined)) : undefined;
 
     if(!title||!Number.isFinite(amount)||amount<=0) { setNotice("Completa los datos correctamente"); return; }
     const id=editingMovement.id;
     setTransactions(items=>items.map(item=>item.id===id?{...item,title,category,amount,quantity,unit,unitPrice: unitPrice ? Number(unitPrice.toFixed(2)) : undefined}:item));
-    if(editingMovement.expenseSource==="fixed"&&editingMovement.sourceId) setFixedExpenses(items=>items.map(item=>item.id===editingMovement.sourceId?{...item,name:title,category,amount,quantity,unit,unitPrice: unitPrice ? Number(unitPrice.toFixed(2)) : undefined}:item));
+    if(editingMovement.expenseSource==="fixed"&&editingMovement.sourceId) setFixedExpenses(items=>items.map(item=>item.id===editingMovement.sourceId?{...item,name:title,category,amount,quantity:undefined,unit:undefined,unitPrice:undefined}:item));
     if(editingMovement.expenseSource==="monthly"&&editingMovement.sourceId) setMonthlyExpenses(items=>items.map(item=>item.id===editingMovement.sourceId?{...item,name:title,category,amount,quantity,unit,unitPrice: unitPrice ? Number(unitPrice.toFixed(2)) : undefined}:item));
     setEditingMovement(null);
     setNotice("Movimiento actualizado correctamente");
@@ -1256,23 +1301,16 @@ export default function Home() {
     const requiresConfirmation=expenseModal.kind!=="group";
     let trendMsg = "";
 
-    const singleQty = Number(expenseModalQuantity) || 1;
-    const singleUnit = expenseModalUnit || (expenseModalWarehouseId ? warehouseItems.find(w => w.id === expenseModalWarehouseId)?.baseUnit : "unidad") || "unidad";
-    const singleUPrice = Number(expenseModalUnitPrice) || (amount > 0 && singleQty > 0 ? amount / singleQty : amount);
+    const isPhysical = (Boolean(expenseModalWarehouseId) || isPhysicalCategory(category)) && expenseModal.kind !== "fixed";
+    const singleQty = isPhysical ? (Number(fd.get("quantity") || expenseModalQuantity) || 1) : undefined;
+    const singleUnit = isPhysical ? (String(fd.get("unit") || expenseModalUnit) || (expenseModalWarehouseId ? warehouseItems.find(w => w.id === expenseModalWarehouseId)?.baseUnit : "unidad") || "unidad") : undefined;
+    const singleUPrice = isPhysical ? (Number(fd.get("unitPrice") || expenseModalUnitPrice) || (amount > 0 && singleQty ? amount / singleQty : amount)) : undefined;
 
     if(expenseModal.kind==="fixed") {
-      if (expenseModalWarehouseId && amount > 0) {
-        const res = recordWarehousePurchaseHistory(expenseModalWarehouseId, amount, activePeriod, {
-          packageFactor: singleQty,
-          packageType: `${singleQty} ${singleUnit}`,
-          unitPrice: singleUPrice
-        });
-        if (res) trendMsg = ` (${res.trendMsg})`;
-      }
-      setFixedExpenses(items=>[{id,name,category,amount,quantity:singleQty,unit:singleUnit,unitPrice:Number(singleUPrice.toFixed(2)),requiresConfirmation,completed:false,warehouseItemId:expenseModalWarehouseId||undefined},...items]);
+      setFixedExpenses(items=>[{id,name,category,amount,requiresConfirmation,completed:false},...items]);
     }
     if(expenseModal.kind==="monthly") {
-      if (expenseModalWarehouseId && amount > 0) {
+      if (expenseModalWarehouseId && amount > 0 && isPhysical && singleQty) {
         const res = recordWarehousePurchaseHistory(expenseModalWarehouseId, amount, activePeriod, {
           packageFactor: singleQty,
           packageType: `${singleQty} ${singleUnit}`,
@@ -1280,7 +1318,7 @@ export default function Home() {
         });
         if (res) trendMsg = ` (${res.trendMsg})`;
       }
-      setMonthlyExpenses(items=>[{id,name,category,amount,quantity:singleQty,unit:singleUnit,unitPrice:Number(singleUPrice.toFixed(2)),period:activePeriod,requiresConfirmation,completed:false,warehouseItemId:expenseModalWarehouseId||undefined},...items]);
+      setMonthlyExpenses(items=>[{id,name,category,amount,quantity:singleQty,unit:singleUnit,unitPrice:singleUPrice ? Number(singleUPrice.toFixed(2)) : undefined,period:activePeriod,requiresConfirmation,completed:false,warehouseItemId:isPhysical ? (expenseModalWarehouseId||undefined) : undefined},...items]);
     }
     if(expenseModal.kind==="group") {
       setExpenseGroups(groups=>[{id,name,budget:amount,items:[]},...groups]);
@@ -1297,12 +1335,14 @@ export default function Home() {
       const entries=names.map((entry,index)=>{
         const rowId = subRows[index];
         const wId = subWarehouseIds[rowId];
-        const qty = Number(subQuantities[rowId] ?? quantities[index]) || 1;
-        const unit = subUnits[rowId] ?? units[index] ?? (wId ? warehouseItems.find(w => w.id === wId)?.baseUnit : "unidad") ?? "unidad";
+        const rowCategory = rowCategories[index] || "Otros";
+        const isRowPhysical = Boolean(wId || isPhysicalCategory(rowCategory));
+        const qty = isRowPhysical ? (Number(subQuantities[rowId] ?? quantities[index]) || 1) : undefined;
+        const unit = isRowPhysical ? (subUnits[rowId] ?? units[index] ?? (wId ? warehouseItems.find(w => w.id === wId)?.baseUnit : "unidad") ?? "unidad") : undefined;
         const amt = amounts[index] || 0;
-        const uPrice = Number(subUnitPrices[rowId] ?? unitPrices[index]) || (amt > 0 && qty > 0 ? amt / qty : amt);
+        const uPrice = isRowPhysical ? (Number(subUnitPrices[rowId] ?? unitPrices[index]) || (amt > 0 && qty ? amt / qty : amt)) : undefined;
 
-        if (wId && amt > 0) {
+        if (wId && amt > 0 && isRowPhysical && qty) {
           const res = recordWarehousePurchaseHistory(wId, amt, activePeriod, {
             packageFactor: qty,
             packageType: `${qty} ${unit}`,
@@ -1313,15 +1353,15 @@ export default function Home() {
         return {
           id: id + index,
           name: entry,
-          category: rowCategories[index] || "Otros",
+          category: rowCategory,
           amount: amt,
           quantity: qty,
           unit,
-          unitPrice: Number(uPrice.toFixed(2)),
+          unitPrice: uPrice ? Number(uPrice.toFixed(2)) : undefined,
           period: activePeriod,
           requiresConfirmation,
-          warehouseItemId: wId || undefined,
-          savingDestination: rowCategories[index]==="Ahorro" ? (subSavingDestinations[rowId]??"general") : undefined
+          warehouseItemId: isRowPhysical ? (wId || undefined) : undefined,
+          savingDestination: rowCategory==="Ahorro" ? (subSavingDestinations[rowId]??"general") : undefined
         };
       }).filter(entry=>entry.name&&Number.isFinite(entry.amount)&&entry.amount>0);
 
@@ -1412,13 +1452,15 @@ export default function Home() {
 
   function openSubExpenseForm(groupId:number) {
     const initialRow = Date.now();
+    const group = expenseGroups.find(g => g.id === groupId);
+    const initialCat = group && categories.includes(group.name) ? group.name : (categories.find(item=>item!=="Ahorro")??categories[0]);
     setSubRows([initialRow]);
     setSubNames({ [initialRow]: "" });
     setSubQuantities({ [initialRow]: "1" });
     setSubUnits({ [initialRow]: "unidad" });
     setSubUnitPrices({ [initialRow]: "" });
     setSubAmounts({ [initialRow]: "" });
-    setSubCategories({});
+    setSubCategories({ [initialRow]: initialCat });
     setSubWarehouseIds({});
     setSubSavingDestinations({});
     setExpenseModal({kind:"sub",groupId});
@@ -1436,13 +1478,14 @@ export default function Home() {
 
   function saveDetailedEdit(e:React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); if(!detailedEdit) return; const fd=new FormData(e.currentTarget);const name=String(fd.get("name")||"").trim();const category=String(fd.get("category")||"Otros");const amount=Number(fd.get("amount"));
-    const quantity = Number(fd.get("quantity")) || undefined;
-    const unit = String(fd.get("unit") || "") || undefined;
-    const unitPrice = Number(fd.get("unitPrice")) || (amount && quantity ? amount / quantity : undefined);
+    const isPhysical = (isPhysicalCategory(category) || Boolean(fd.get("quantity"))) && detailedEdit.section !== "fixed";
+    const quantity = isPhysical ? (Number(fd.get("quantity")) || undefined) : undefined;
+    const unit = isPhysical ? (String(fd.get("unit") || "") || undefined) : undefined;
+    const unitPrice = isPhysical ? (Number(fd.get("unitPrice")) || (amount && quantity ? amount / quantity : undefined)) : undefined;
     if(!name||!Number.isFinite(amount)||amount<0) { setNotice("Completa los datos correctamente"); return; }
-    const update=(items:ExpenseEntry[])=>items.map(item=>item.id===detailedEdit.id?{...item,name,category,amount,quantity,unit,unitPrice: unitPrice ? Number(unitPrice.toFixed(2)) : undefined}:item);
+    const update=(items:ExpenseEntry[])=>items.map(item=>item.id===detailedEdit.id?{...item,name,category,amount,quantity:detailedEdit.section==="fixed"?undefined:quantity,unit:detailedEdit.section==="fixed"?undefined:unit,unitPrice:detailedEdit.section==="fixed"?undefined:(unitPrice ? Number(unitPrice.toFixed(2)) : undefined)}:item);
     if(detailedEdit.section==="fixed") setFixedExpenses(update); else setMonthlyExpenses(update);
-    setTransactions(items=>items.map(item=>item.id===detailedEdit.id?{...item,title:name,category,amount,quantity,unit,unitPrice: unitPrice ? Number(unitPrice.toFixed(2)) : undefined}:item));
+    setTransactions(items=>items.map(item=>item.id===detailedEdit.id?{...item,title:name,category,amount,quantity:detailedEdit.section==="fixed"?undefined:quantity,unit:detailedEdit.section==="fixed"?undefined:unit,unitPrice:detailedEdit.section==="fixed"?undefined:(unitPrice ? Number(unitPrice.toFixed(2)) : undefined)}:item));
     setDetailedEdit(null);setNotice("Gasto actualizado correctamente");
   }
 
@@ -1473,9 +1516,10 @@ export default function Home() {
     if(expenseEdit.kind==="group") setExpenseGroups(groups=>groups.map(group=>group.id===expenseEdit.groupId?{...group,name,budget:amount}:group));
     else {
       const category=String(fd.get("category")||"Otros");
-      const quantity=Number(fd.get("quantity")) || undefined;
-      const unit=String(fd.get("unit")||"") || undefined;
-      const unitPrice=Number(fd.get("unitPrice")) || (amount && quantity ? amount / quantity : undefined);
+      const isPhysical = isPhysicalCategory(category) || Boolean(fd.get("quantity"));
+      const quantity = isPhysical ? (Number(fd.get("quantity")) || undefined) : undefined;
+      const unit = isPhysical ? (String(fd.get("unit")||"") || undefined) : undefined;
+      const unitPrice = isPhysical ? (Number(fd.get("unitPrice")) || (amount && quantity ? amount / quantity : undefined)) : undefined;
       setExpenseGroups(groups=>groups.map(group=>group.id===expenseEdit.groupId?{
         ...group,
         items:group.items.map(item=>item.id===expenseEdit.itemId?{...item,name,amount,category,quantity,unit,unitPrice: unitPrice ? Number(unitPrice.toFixed(2)) : undefined}:item)
@@ -1904,7 +1948,7 @@ export default function Home() {
       <article className="card module-card"><div className="card-title"><div><h2>Historial de {monthNames[selectedMonth]} {selectedYear}</h2><p>{visibleTransactions.length} movimientos encontrados</p></div></div><TransactionList items={visibleTransactions} onDelete={removeMovement} onToggle={toggleExpenseCompletion} onEdit={setEditingMovement}/></article>
     </>;
     if(active==="Gastos") return <>
-      <ModuleHeading eyebrow="CONTROL DE GASTOS" title="Gastos" text="Organiza tus pagos fijos, consumos mensuales y el detalle de cada categoría." action={<button className="primary" onClick={()=>setExpenseModal({kind:expenseTab==="fixed"?"fixed":expenseTab==="monthly"?"monthly":"group"})}><Plus size={18}/>{expenseTab==="groups"?"Agregar detalle":"Agregar gasto"}</button>}/>
+      <ModuleHeading eyebrow="CONTROL DE GASTOS" title="Gastos" text="Organiza tus pagos fijos, consumos mensuales y el detalle de cada categoría." action={<button className="primary" onClick={()=>openAddExpenseModal(expenseTab==="fixed"?"fixed":expenseTab==="monthly"?"monthly":"group")}><Plus size={18}/>{expenseTab==="groups"?"Agregar detalle":"Agregar gasto"}</button>}/>
       <section className="module-stats"><MiniStat label="Gastos fijos" value={fixedTotal} tone="orange"/><MiniStat label="Gastos mensuales" value={monthlyTotal} tone="blue"/><MiniStat label="Categorías definidas" value={groupedTotal} tone="green"/></section>
       <div className="expense-tabs" role="tablist" aria-label="Tipos de gasto">
         <button role="tab" aria-selected={expenseTab==="fixed"} className={expenseTab==="fixed"?"active":""} onClick={()=>setExpenseTab("fixed")}><ReceiptText size={17}/>Gastos fijos</button>
@@ -1913,7 +1957,7 @@ export default function Home() {
       </div>
       {expenseTab!=="groups"&&<article className="card module-card expense-list-card"><div className="card-title"><div><h2>{expenseTab==="fixed"?"Pagos que se repiten cada mes":`Gastos variables de ${monthNames[selectedMonth]}`}</h2><p>{expenseTab==="fixed"?"Alquiler, ahorro, pasajes y servicios recurrentes.":"Solo se muestran los consumos del período seleccionado."}</p></div></div><div className="expense-rows">{(expenseTab==="fixed"?fixedExpenses:monthlyForPeriod).map(item=>{
         const isCompleted = expenseTab==="fixed" ? (periodFixedStatus[activePeriod]?.[item.id] ?? false) : item.completed;
-        return <div className="expense-row" key={item.id}><div className={`expense-kind-icon ${item.category==="Ahorro"?"saving":""}`}>{categoryIcon(item.category,"expense")}</div><div><div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}><strong>{item.name}</strong>{item.quantity&&item.quantity>0&&<span style={{fontSize:"11px",padding:"1px 6px",borderRadius:"4px",background:"#f1f5f9",color:"#475569",fontWeight:600}}>{item.quantity} {item.unit||"u."}{item.unitPrice?` · S/ ${item.unitPrice.toFixed(2)}/${item.unit||"u."}`:""}</span>}{item.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}</div><span>{item.category} · {item.requiresConfirmation?(isCompleted?"Realizado":"Pendiente de pago"):"Pronóstico"}</span></div><strong className="expense-value">S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>{item.requiresConfirmation&&<button className={`completion-toggle ${isCompleted?"done":""}`} onClick={()=>toggleDetailedCompletion(expenseTab,item.id)} title={isCompleted?"Realizado: volver a pendiente":"Marcar como realizado"}>{isCompleted?<Check size={15}/>:<Circle size={15}/>}</button>}{expenseTab==="fixed"&&<button className="add-subexpense" onClick={()=>duplicateFixedExpense(item)}>Duplicar</button>}<button className="add-subexpense" onClick={()=>setDetailedEdit({section:expenseTab,id:item.id})}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeDetailedExpense(expenseTab,item.id)}><Trash2 size={15}/></button></div>;
+        return <div className="expense-row" key={item.id}><div className={`expense-kind-icon ${item.category==="Ahorro"?"saving":""}`}>{categoryIcon(item.category,"expense")}</div><div><div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}><strong>{item.name}</strong>{item.quantity&&item.quantity>0&&expenseTab!=="fixed"&&(isPhysicalCategory(item.category)||Boolean(item.warehouseItemId))&&<span style={{fontSize:"11px",padding:"1px 6px",borderRadius:"4px",background:"#f1f5f9",color:"#475569",fontWeight:600}}>{item.quantity} {item.unit||"u."}{item.unitPrice?` · S/ ${item.unitPrice.toFixed(2)}/${item.unit||"u."}`:""}</span>}{item.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}</div><span>{item.category} · {item.requiresConfirmation?(isCompleted?"Realizado":"Pendiente de pago"):"Pronóstico"}</span></div><strong className="expense-value">S/ {item.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}</strong>{item.requiresConfirmation&&<button className={`completion-toggle ${isCompleted?"done":""}`} onClick={()=>toggleDetailedCompletion(expenseTab,item.id)} title={isCompleted?"Realizado: volver a pendiente":"Marcar como realizado"}>{isCompleted?<Check size={15}/>:<Circle size={15}/>}</button>}{expenseTab==="fixed"&&<button className="add-subexpense" onClick={()=>duplicateFixedExpense(item)}>Duplicar</button>}<button className="add-subexpense" onClick={()=>setDetailedEdit({section:expenseTab,id:item.id})}>Editar</button><button className="expense-delete" aria-label={`Eliminar ${item.name}`} onClick={()=>removeDetailedExpense(expenseTab,item.id)}><Trash2 size={15}/></button></div>;
       })}{(expenseTab==="fixed"?fixedExpenses:monthlyForPeriod).length===0&&<div className="empty-state"><ReceiptText/><strong>Aún no tienes gastos en este período</strong><span>Usa “Agregar gasto” para registrarlo en {monthNames[selectedMonth]}.</span></div>}</div></article>}
       {expenseTab==="groups"&&<section className="expense-groups">{expenseGroups.map(group=>{
         const groupPeriodItems = group.items.filter(item => (item.period ?? initialPeriod) === activePeriod);
@@ -1968,7 +2012,7 @@ export default function Home() {
               <div>
                 <div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}>
                   <strong>{item.name}</strong>
-                  {item.quantity&&item.quantity>0&&<span style={{fontSize:"11px",padding:"1px 6px",borderRadius:"4px",background:"#f1f5f9",color:"#475569",fontWeight:600}}>{item.quantity} {item.unit||"u."}{item.unitPrice?` · S/ ${item.unitPrice.toFixed(2)}/${item.unit||"u."}`:""}</span>}
+                  {item.quantity&&item.quantity>0&&(isPhysicalCategory(item.category)||Boolean(item.warehouseItemId))&&<span style={{fontSize:"11px",padding:"1px 6px",borderRadius:"4px",background:"#f1f5f9",color:"#475569",fontWeight:600}}>{item.quantity} {item.unit||"u."}{item.unitPrice?` · S/ ${item.unitPrice.toFixed(2)}/${item.unit||"u."}`:""}</span>}
                   {item.warehouseItemId&&<span style={{fontSize:"10px",padding:"1px 6px",borderRadius:"4px",background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",fontWeight:600}} title="Vinculado al historial de precios del Almacén">📦 Almacén</span>}
                 </div>
                 <span>{item.category} · {item.requiresConfirmation?(item.completed?"Realizado":"Pendiente"):"Pronóstico"}</span>
@@ -2768,7 +2812,7 @@ export default function Home() {
       </div>
     </main>
 
-    {showModal&&<div className="modal-backdrop" onMouseDown={closeMovementModal}><form className="modal" onSubmit={addTransaction} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nuevo movimiento</h2><p>Registra un ingreso o gasto en {monthNames[selectedMonth]} {selectedYear}.</p></div><button type="button" onClick={closeMovementModal}><X/></button></div><label>Tipo<select name="kind" value={movementKind} onChange={e=>setMovementKind(e.target.value as "income"|"expense")}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>{movementKind==="expense"&&<label>Tipo de gasto<select value={expenseType} onChange={e=>setExpenseType(e.target.value as "fixed"|"monthly"|"group")}><option value="fixed">Gasto fijo — se repite cada mes</option><option value="monthly">Gasto mensual — solo este mes</option><option value="group">Detalle por categoría</option></select></label>}{warehouseItems.length>0&&movementKind==="expense"&&<div className="warehouse-quick-pick"><span className="warehouse-quick-pick-label"><Package size={15}/> 📦 ¿Jalar producto habitual del Almacén?</span><select value={selectedMovementWarehouseId||""} onChange={e=>{const val=Number(e.target.value);if(!val){setSelectedMovementWarehouseId(null);return;}const found=warehouseItems.find(item=>item.id===val);if(found){setSelectedMovementWarehouseId(val);const title=cleanProductName(found.name)||found.name;const unitCost=getWarehouseUnitCost(found);const qty=parseFloat(movementQuantity)||1;const total=(qty*unitCost).toFixed(2);setMovementTitle(title);setMovementUnit(found.baseUnit||"unidad");setMovementUnitPrice(unitCost.toFixed(2));setMovementAmount(total);if(categories.includes(found.category)){setMovementCategory(found.category);}setNotice(`✓ "${title}": S/ ${unitCost.toFixed(2)} por ${found.baseUnit} (${qty} ${found.baseUnit} = S/ ${total})`);}}}><option value="">-- Selecciona para autocompletar nombre, categoría y precio --</option>{Array.from(new Set(warehouseItems.map(w=>w.category))).map(cat=><optgroup key={cat} label={`📁 ${cat}`}>{warehouseItems.filter(w=>w.category===cat).map(item=><option key={item.id} value={item.id}>{formatWarehouseOptionLabel(item)}</option>)}</optgroup>)}</select></div>}<label>Descripción<input name="title" required value={movementTitle} onChange={e=>setMovementTitle(e.target.value)} placeholder={movementKind==="income"?"Ej. Sueldo mensual":expenseType==="fixed"?"Ej. Alquiler":"Ej. Almuerzo"}/></label>{movementKind==="expense"?<><label>Categoría<select name="category" value={movementCategory} onChange={e=>setMovementCategory(e.target.value)}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><div style={{display:"grid",gridTemplateColumns:"75px 105px 1fr 1fr",gap:"8px",alignItems:"flex-end",margin:"10px 0"}}><label style={{margin:0}}>Cantidad<input name="quantity" type="number" step="any" min="0.01" value={movementQuantity} onChange={e=>handleMovementQuantityChange(e.target.value)} placeholder="1"/></label><label style={{margin:0}}>Unidad<select name="unit" value={movementUnit} onChange={e=>setMovementUnit(e.target.value)}>{commonUnits.map(u=><option key={u.value} value={u.value}>{u.label}</option>)}</select></label><label style={{margin:0}}>P. Unitario (S/)<input name="unitPrice" type="number" step="0.01" min="0.01" value={movementUnitPrice} onChange={e=>handleMovementUnitPriceChange(e.target.value)} placeholder="0.00"/></label><label style={{margin:0}}>Monto Total (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={movementAmount} onChange={e=>handleMovementAmountChange(e.target.value)} placeholder="0.00" style={{fontWeight:700}}/></label></div></>:<div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={movementAmount} onChange={e=>setMovementAmount(e.target.value)} placeholder="0.00"/></label><label>Categoría<select name="category" value={incomeCategories.includes(movementCategory)?movementCategory:incomeCategories[0]} onChange={e=>setMovementCategory(e.target.value)}>{incomeCategories.map(category=><option key={category}>{category}</option>)}</select></label></div>}{movementKind==="expense"&&movementCategory==="Ahorro"&&<label>Destino del ahorro<select name="savingDestination" value={String(savingDestination)} onChange={e=>setSavingDestination(e.target.value==="general"?"general":Number(e.target.value))}><option value="general">Ahorro general / indefinido</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}{movementKind==="expense"&&movementCategory==="Ahorro"&&<p className="eyebrow">Este egreso se registrará también como aporte al destino que elegiste.</p>}{movementKind==="expense"&&expenseType==="group"&&movementCategory!=="Ahorro"&&<p className="eyebrow">Este movimiento se verá en el historial. Los subgastos se agregan desde Detalle por categoría.</p>}<div className="modal-actions"><button type="button" onClick={closeMovementModal}>Cancelar</button><button className="primary" type="submit">Guardar movimiento</button></div></form></div>}
+    {showModal&&<div className="modal-backdrop" onMouseDown={closeMovementModal}><form className="modal" onSubmit={addTransaction} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nuevo movimiento</h2><p>Registra un ingreso o gasto en {monthNames[selectedMonth]} {selectedYear}.</p></div><button type="button" onClick={closeMovementModal}><X/></button></div><label>Tipo<select name="kind" value={movementKind} onChange={e=>setMovementKind(e.target.value as "income"|"expense")}><option value="expense">Gasto</option><option value="income">Ingreso</option></select></label>{movementKind==="expense"&&<label>Tipo de gasto<select value={expenseType} onChange={e=>setExpenseType(e.target.value as "fixed"|"monthly"|"group")}><option value="fixed">Gasto fijo — se repite cada mes</option><option value="monthly">Gasto mensual — solo este mes</option><option value="group">Detalle por categoría</option></select></label>}{warehouseItems.length>0&&movementKind==="expense"&&expenseType!=="fixed"&&isPhysicalCategory(movementCategory)&&<div className="warehouse-quick-pick"><span className="warehouse-quick-pick-label"><Package size={15}/> 📦 ¿Jalar producto habitual del Almacén?</span><select value={selectedMovementWarehouseId||""} onChange={e=>{const val=Number(e.target.value);if(!val){setSelectedMovementWarehouseId(null);return;}const found=warehouseItems.find(item=>item.id===val);if(found){setSelectedMovementWarehouseId(val);const title=cleanProductName(found.name)||found.name;const unitCost=getWarehouseUnitCost(found);const qty=parseFloat(movementQuantity)||1;const total=(qty*unitCost).toFixed(2);setMovementTitle(title);setMovementUnit(found.baseUnit||"unidad");setMovementUnitPrice(unitCost.toFixed(2));setMovementAmount(total);if(categories.includes(found.category)){setMovementCategory(found.category);}setNotice(`✓ "${title}": S/ ${unitCost.toFixed(2)} por ${found.baseUnit} (${qty} ${found.baseUnit} = S/ ${total})`);}}}><option value="">-- Selecciona para autocompletar nombre, categoría y precio --</option>{Array.from(new Set(warehouseItems.map(w=>w.category))).map(cat=><optgroup key={cat} label={`📁 ${cat}`}>{warehouseItems.filter(w=>w.category===cat).map(item=><option key={item.id} value={item.id}>{formatWarehouseOptionLabel(item)}</option>)}</optgroup>)}</select></div>}<label>Descripción<input name="title" required value={movementTitle} onChange={e=>setMovementTitle(e.target.value)} placeholder={movementKind==="income"?"Ej. Sueldo mensual":expenseType==="fixed"?"Ej. Agua y luz, Alquiler, Internet":"Ej. Almuerzo, Taxi, Compras"}/></label>{movementKind==="expense"?(expenseType==="fixed"?<div className="form-row"><label>Monto mensual (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={movementAmount} onChange={e=>setMovementAmount(e.target.value)} placeholder="0.00" style={{fontWeight:700}}/></label><label>Categoría<select name="category" value={movementCategory} onChange={e=>setMovementCategory(e.target.value)}>{categories.map(category=><option key={category}>{category}</option>)}</select></label></div>:(isPhysicalCategory(movementCategory)||Boolean(selectedMovementWarehouseId))?(<><label>Categoría<select name="category" value={movementCategory} onChange={e=>{setMovementCategory(e.target.value);if(!isPhysicalCategory(e.target.value))setSelectedMovementWarehouseId(null);}}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><div className="unit-inputs-grid"><label style={{margin:0}}>Cantidad<input name="quantity" type="number" step="any" min="0.01" value={movementQuantity} onChange={e=>handleMovementQuantityChange(e.target.value)} placeholder="1"/></label><label style={{margin:0}}>Unidad<select name="unit" value={movementUnit} onChange={e=>setMovementUnit(e.target.value)}>{commonUnits.map(u=><option key={u.value} value={u.value}>{u.label}</option>)}</select></label><label style={{margin:0}}>P. Unitario (S/)<input name="unitPrice" type="number" step="0.01" min="0.01" value={movementUnitPrice} onChange={e=>handleMovementUnitPriceChange(e.target.value)} placeholder="0.00"/></label><label style={{margin:0}}>Monto Total (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={movementAmount} onChange={e=>handleMovementAmountChange(e.target.value)} placeholder="0.00" style={{fontWeight:700}}/></label></div></>):<div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={movementAmount} onChange={e=>setMovementAmount(e.target.value)} placeholder="0.00" style={{fontWeight:700}}/></label><label>Categoría<select name="category" value={movementCategory} onChange={e=>{setMovementCategory(e.target.value);if(!isPhysicalCategory(e.target.value))setSelectedMovementWarehouseId(null);}}>{categories.map(category=><option key={category}>{category}</option>)}</select></label></div>):<div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={movementAmount} onChange={e=>setMovementAmount(e.target.value)} placeholder="0.00" style={{fontWeight:700}}/></label><label>Categoría<select name="category" value={incomeCategories.includes(movementCategory)?movementCategory:incomeCategories[0]} onChange={e=>setMovementCategory(e.target.value)}>{incomeCategories.map(category=><option key={category}>{category}</option>)}</select></label></div>}{movementKind==="expense"&&movementCategory==="Ahorro"&&<label>Destino del ahorro<select name="savingDestination" value={String(savingDestination)} onChange={e=>setSavingDestination(e.target.value==="general"?"general":Number(e.target.value))}><option value="general">Ahorro general / indefinido</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}{movementKind==="expense"&&movementCategory==="Ahorro"&&<p className="eyebrow">Este egreso se registrará también como aporte al destino que elegiste.</p>}{movementKind==="expense"&&expenseType==="group"&&movementCategory!=="Ahorro"&&<p className="eyebrow">Este movimiento se verá en el historial. Los subgastos se agregan desde Detalle por categoría.</p>}<div className="modal-actions"><button type="button" onClick={closeMovementModal}>Cancelar</button><button className="primary" type="submit">Guardar movimiento</button></div></form></div>}
     {warehouseModal.open&&<div className="modal-backdrop" onMouseDown={()=>setWarehouseModal({open:false,item:null})}><form className="modal" onSubmit={saveWarehouseItem} onMouseDown={e=>e.stopPropagation()}>
       <div className="modal-title">
         <div>
@@ -3052,13 +3096,580 @@ export default function Home() {
         </div>
       </div>;
     })()}
-    {expenseModal&&<div className="modal-backdrop" onMouseDown={()=>setExpenseModal(null)}><form className="modal" onSubmit={addDetailedExpense} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{expenseModal.kind==="group"?"Activar detalle por categoría":expenseModal.kind==="sub"?"Agregar subgastos":expenseModal.kind==="fixed"?"Nuevo gasto fijo":"Nuevo gasto mensual"}</h2><p>{expenseModal.kind==="group"?"Escribe una categoría existente. Las categorías se administran únicamente en Configuración.":expenseModal.kind==="sub"?"Añade varias compras a esta categoría o jálalas directamente de tu almacén con 1 clic.":"Registra el concepto y su monto."}</p></div><button type="button" onClick={()=>setExpenseModal(null)}><X/></button></div>{expenseModal.kind==="sub"?<><div className="card-title"><div><h2>Detalle de subgastos</h2><p>{subRows.length} fila{subRows.length===1?"":"s"} lista{subRows.length===1?"":"s"} para registrar.</p></div><button type="button" className="add-subexpense" onClick={()=>setSubRows(rows=>[...rows,Date.now()+rows.length])}><Plus size={16}/>Agregar fila</button></div>{warehouseItems.length>0&&<div style={{marginBottom:"14px",padding:"10px 12px",background:"#f8fafc",borderRadius:"8px",border:"1px solid #e2e8f0"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px"}}><span style={{fontSize:"11px",fontWeight:700,color:"#334155",display:"flex",alignItems:"center",gap:"5px"}}><Package size={13} color="#2563eb"/> INSUMOS FRECUENTES DE ALMACÉN (1 CLIC)</span><span style={{fontSize:"10px",color:"var(--muted)"}}>Haz clic para autocompletar</span></div><div style={{display:"flex",flexWrap:"wrap",gap:"6px",maxHeight:"85px",overflowY:"auto"}}>{warehouseItems.slice(0,10).map(w=><button key={w.id} type="button" onClick={()=>addSubExpenseFromWarehouse(w)} style={{fontSize:"11px",padding:"3px 8px",borderRadius:"14px",background:"#ffffff",border:"1px solid #cbd5e1",color:"#0f172a",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:"4px",fontWeight:500}} title={`Agregar ${cleanProductName(w.name)} (S/ ${getWarehouseUnitCost(w).toFixed(2)}/${w.baseUnit})`}><Plus size={11} color="#2563eb"/><span>{cleanProductName(w.name)}</span><strong style={{color:"#2563eb",fontSize:"10px"}}>S/ {getWarehouseUnitCost(w).toFixed(2)}/{w.baseUnit}</strong></button>)}</div></div>}{subRows.map((row,index)=>{const category=subCategories[row]??categories.find(item=>item!=="Ahorro")??categories[0];const currentName=subNames[row]??"";const currentAmount=subAmounts[row]??"";const currentQty=subQuantities[row]??"1";const currentUnit=subUnits[row]??"unidad";const currentUnitPrice=subUnitPrices[row]??"";const linkedWId=subWarehouseIds[row];const linkedItem=linkedWId?warehouseItems.find(w=>w.id===linkedWId):null;const warehouseCats=Array.from(new Set(warehouseItems.map(w=>w.category)));return <div className="subexpense-form-row" key={row} style={{display:"flex",flexDirection:"column",gap:"8px",padding:"12px",background:linkedItem?"#f0fdf4":"#f8fafc",borderRadius:"8px",border:linkedItem?"1px solid #86efac":"1px solid #e2e8f0",marginBottom:"12px",transition:"all 0.2s ease"}}>{warehouseItems.length>0&&<div style={{display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap",justifyContent:"space-between"}}><div style={{display:"flex",alignItems:"center",gap:"6px",flex:1,minWidth:"220px"}}><span style={{fontSize:"11px",fontWeight:600,color:linkedItem?"#15803d":"var(--muted)",display:"flex",alignItems:"center",gap:"4px",whiteSpace:"nowrap"}}><Package size={13} color={linkedItem?"#16a34a":"currentColor"}/> {linkedItem?"Producto de Almacén:":"¿Jalar de Almacén?"}</span><select style={{fontSize:"12px",padding:"4px 8px",flex:1,borderRadius:"6px",border:linkedItem?"1px solid #86efac":"1px solid #cbd5e1",background:"#ffffff"}} value={linkedWId||""} onChange={e=>{const val=Number(e.target.value);if(val) selectWarehouseForSubRow(row,val); else setSubWarehouseIds(prev=>{const n={...prev};delete n[row];return n;});}}><option value="">-- Selecciona producto para autocompletar --</option>{warehouseCats.map(cat=><optgroup key={cat} label={`📁 ${cat}`}>{warehouseItems.filter(w=>w.category===cat).map(wItem=><option key={wItem.id} value={wItem.id}>{formatWarehouseOptionLabel(wItem)}</option>)}</optgroup>)}</select></div>{linkedItem&&<span style={{fontSize:"10px",padding:"2px 8px",borderRadius:"4px",background:"#dcfce7",color:"#15803d",fontWeight:600}}>✓ Vinculado con Almacén</span>}</div>}<div style={{display:"grid",gridTemplateColumns:"minmax(140px, 1.8fr) minmax(110px, 1fr)",gap:"8px"}}><label style={{margin:0}}>Descripción<input name="name" required autoFocus={index===0} value={currentName} onChange={e=>setSubNames(prev=>({...prev,[row]:e.target.value}))} placeholder="Ej. Mandarina, Arroz..."/></label><label style={{margin:0}}>Categoría<select name="category" value={category} onChange={e=>setSubCategories(items=>({...items,[row]:e.target.value}))}>{categories.map(item=><option key={item}>{item}</option>)}</select></label></div><div style={{display:"grid",gridTemplateColumns:"75px 105px 1fr 1fr auto",gap:"8px",alignItems:"flex-end"}}><label style={{margin:0}}>Cantidad<input name="quantity" type="number" step="any" min="0.01" value={currentQty} onChange={e=>handleSubQuantityChange(row,e.target.value)} placeholder="1"/></label><label style={{margin:0}}>Unidad<select name="unit" value={currentUnit} onChange={e=>setSubUnits(prev=>({...prev,[row]:e.target.value}))}>{commonUnits.map(u=><option key={u.value} value={u.value}>{u.label}</option>)}</select></label><label style={{margin:0}}>P. Unitario (S/)<input name="unitPrice" type="number" step="0.01" min="0.01" value={currentUnitPrice} onChange={e=>handleSubUnitPriceChange(row,e.target.value)} placeholder="0.00"/></label><label style={{margin:0}}>Monto Total (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={currentAmount} onChange={e=>handleSubAmountChange(row,e.target.value)} placeholder="0.00" style={{fontWeight:700}}/></label>{subRows.length>1?<button type="button" className="expense-delete" style={{marginBottom:"4px"}} onClick={()=>setSubRows(rows=>rows.filter(item=>item!==row))} title="Eliminar fila"><Trash2 size={15}/></button>:<div style={{width:28}}/>}</div>{category==="Ahorro"&&<label style={{margin:0}}>Destino<select value={String(subSavingDestinations[row]??"general")} onChange={e=>setSubSavingDestinations(items=>({...items,[row]:e.target.value==="general"?"general":Number(e.target.value)}))}><option value="general">Ahorro general</option>{savingsGoals.map(goal=><option key={goal.id} value={goal.id}>{goal.name}</option>)}</select></label>}</div>})}</>:<>{expenseModal.kind!=="group"&&warehouseItems.length>0&&<div className="warehouse-quick-pick" style={{marginBottom:"10px"}}><span className="warehouse-quick-pick-label"><Package size={14}/> 📦 ¿Jalar producto habitual del Almacén?</span><select value={expenseModalWarehouseId||""} onChange={e=>{const val=Number(e.target.value);if(!val){setExpenseModalWarehouseId(null);return;}const found=warehouseItems.find(item=>item.id===val);if(found){const title=cleanProductName(found.name)||found.name;const unitCost=getWarehouseUnitCost(found);const qty=parseFloat(expenseModalQuantity)||1;const total=(qty*unitCost).toFixed(2);setExpenseModalWarehouseId(val);setExpenseModalTitle(title);setExpenseModalUnit(found.baseUnit||"unidad");setExpenseModalUnitPrice(unitCost.toFixed(2));setExpenseModalAmount(total);if(categories.includes(found.category)){setExpenseModalCategory(found.category);}setNotice(`✓ "${title}": S/ ${unitCost.toFixed(2)} por ${found.baseUnit} (${qty} ${found.baseUnit} = S/ ${total})`);}}}><option value="">-- Selecciona para autocompletar --</option>{Array.from(new Set(warehouseItems.map(w=>w.category))).map(cat=><optgroup key={cat} label={`📁 ${cat}`}>{warehouseItems.filter(w=>w.category===cat).map(item=><option key={item.id} value={item.id}>{formatWarehouseOptionLabel(item)}</option>)}</optgroup>)}</select></div>}<label>{expenseModal.kind==="group"?"Categoría existente":"Descripción"}<input name="name" required autoFocus value={expenseModal.kind==="group"?undefined:(expenseModalTitle||undefined)} onChange={e=>setExpenseModalTitle(e.target.value)} placeholder={expenseModal.kind==="group"?"Ej. Alimentación":expenseModal.kind==="fixed"?"Ej. Alquiler":"Ej. Almuerzo"}/></label>{expenseModal.kind!=="group"?<><label>Categoría<select name="category" value={expenseModalCategory||undefined} onChange={e=>setExpenseModalCategory(e.target.value)}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><div style={{display:"grid",gridTemplateColumns:"75px 105px 1fr 1fr",gap:"8px",alignItems:"flex-end",margin:"10px 0"}}><label style={{margin:0}}>Cantidad<input name="quantity" type="number" step="any" min="0.01" value={expenseModalQuantity} onChange={e=>handleExpenseModalQuantityChange(e.target.value)} placeholder="1"/></label><label style={{margin:0}}>Unidad<select name="unit" value={expenseModalUnit} onChange={e=>setExpenseModalUnit(e.target.value)}>{commonUnits.map(u=><option key={u.value} value={u.value}>{u.label}</option>)}</select></label><label style={{margin:0}}>P. Unitario (S/)<input name="unitPrice" type="number" step="0.01" min="0.01" value={expenseModalUnitPrice} onChange={e=>handleExpenseModalUnitPriceChange(e.target.value)} placeholder="0.00"/></label><label style={{margin:0}}>Monto Total (S/)<input name="amount" required type="number" min="0.01" step="0.01" value={expenseModalAmount} onChange={e=>handleExpenseModalAmountChange(e.target.value)} placeholder="0.00" style={{fontWeight:700}}/></label></div></>:<label>Presupuesto mensual (S/)<input name="amount" required type="number" min="0.01" step="0.01" placeholder="0.00"/></label>}</>}<div className="modal-actions"><button type="button" onClick={()=>setExpenseModal(null)}>Cancelar</button><button className="primary" type="submit">{expenseModal.kind==="group"?"Activar detalle":expenseModal.kind==="sub"?`Guardar ${subRows.length} subgasto${subRows.length===1?"":"s"}`:"Guardar gasto"}</button></div></form></div>}
-    {expenseEdit&&(()=>{const group=expenseGroups.find(item=>item.id===expenseEdit.groupId);const item=expenseEdit.kind==="sub"?group?.items.find(entry=>entry.id===expenseEdit.itemId):undefined;if(!group||(expenseEdit.kind==="sub"&&!item))return null;const isGroup=expenseEdit.kind==="group";const groupPeriodItems=group.items.filter(entry=>(entry.period??initialPeriod)===activePeriod);const groupPeriodUsed=groupPeriodItems.reduce((sum,entry)=>sum+entry.amount,0);return <div className="modal-backdrop" onMouseDown={()=>setExpenseEdit(null)}><form className="modal" onSubmit={saveExpenseEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{isGroup?"Editar rubro":"Editar subgasto"}</h2><p>{isGroup?"Actualiza el nombre y el presupuesto. Los subgastos se conservan.":`Dentro del rubro ${group.name}.`}</p></div><button type="button" onClick={()=>setExpenseEdit(null)}><X/></button></div><label>{isGroup?"Nombre del rubro":"Descripción"}<input name="name" required autoFocus defaultValue={isGroup?group.name:item!.name}/></label>{!isGroup&&<><label>Categoría<select name="category" defaultValue={item!.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><div style={{display:"grid",gridTemplateColumns:"75px 105px 1fr 1fr",gap:"8px",alignItems:"flex-end",margin:"10px 0"}}><label style={{margin:0}}>Cantidad<input name="quantity" type="number" step="any" min="0.01" defaultValue={item!.quantity||1}/></label><label style={{margin:0}}>Unidad<select name="unit" defaultValue={item!.unit||"unidad"}>{commonUnits.map(u=><option key={u.value} value={u.value}>{u.label}</option>)}</select></label><label style={{margin:0}}>P. Unitario (S/)<input name="unitPrice" type="number" step="0.01" min="0.01" defaultValue={item!.unitPrice||(item!.amount/(item!.quantity||1))}/></label><label style={{margin:0}}>Monto Total (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={item!.amount} style={{fontWeight:700}}/></label></div></>}{isGroup&&<label>Presupuesto mensual (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={group.budget}/></label>}<div className="module-callout"><ReceiptText/><div><strong>{isGroup?`${groupPeriodItems.length} subgastos en ${monthNames[selectedMonth]}`:`Periodo: ${monthNames[selectedMonth]} ${selectedYear}`}</strong><span>{isGroup?`Total usado en ${monthNames[selectedMonth]}: S/ ${groupPeriodUsed.toLocaleString("es-PE",{minimumFractionDigits:2})}`:`Valor actual: S/ ${item!.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</span></div></div><div className="modal-actions"><button type="button" onClick={()=>setExpenseEdit(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
-    {detailedEdit&&(()=>{const item=(detailedEdit.section==="fixed"?fixedExpenses:monthlyExpenses).find(entry=>entry.id===detailedEdit.id);if(!item)return null;return <div className="modal-backdrop" onMouseDown={()=>setDetailedEdit(null)}><form className="modal" onSubmit={saveDetailedEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Editar {detailedEdit.section==="fixed"?"gasto fijo":"gasto mensual"}</h2><p>Actualiza los datos sin perder el registro.</p></div><button type="button" onClick={()=>setDetailedEdit(null)}><X/></button></div><label>Descripción<input name="name" required autoFocus defaultValue={item.name}/></label><label>Categoría<select name="category" defaultValue={item.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><div style={{display:"grid",gridTemplateColumns:"75px 105px 1fr 1fr",gap:"8px",alignItems:"flex-end",margin:"10px 0"}}><label style={{margin:0}}>Cantidad<input name="quantity" type="number" step="any" min="0.01" defaultValue={item.quantity||1}/></label><label style={{margin:0}}>Unidad<select name="unit" defaultValue={item.unit||"unidad"}>{commonUnits.map(u=><option key={u.value} value={u.value}>{u.label}</option>)}</select></label><label style={{margin:0}}>P. Unitario (S/)<input name="unitPrice" type="number" step="0.01" min="0.01" defaultValue={item.unitPrice||(item.amount/(item.quantity||1))}/></label><label style={{margin:0}}>Monto Total (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={item.amount} style={{fontWeight:700}}/></label></div><div className="modal-actions"><button type="button" onClick={()=>setDetailedEdit(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
+    {expenseModal && (
+      <div className="modal-backdrop" onMouseDown={() => setExpenseModal(null)}>
+        <form className="modal" onSubmit={addDetailedExpense} onMouseDown={(e) => e.stopPropagation()}>
+          <div className="modal-title">
+            <div>
+              <h2>
+                {expenseModal.kind === "group"
+                  ? "Activar detalle por categoría"
+                  : expenseModal.kind === "sub"
+                  ? "Agregar subgastos"
+                  : expenseModal.kind === "fixed"
+                  ? "Nuevo gasto fijo"
+                  : "Nuevo gasto mensual"}
+              </h2>
+              <p>
+                {expenseModal.kind === "group"
+                  ? "Escribe una categoría existente. Las categorías se administran únicamente en Configuración."
+                  : expenseModal.kind === "sub"
+                  ? "Añade los gastos de esta categoría al presupuesto."
+                  : expenseModal.kind === "fixed"
+                  ? "Registra un pago que se repite todos los meses (servicios, alquiler, suscripciones, etc.)."
+                  : "Registra un gasto puntual o compra de este mes."}
+              </p>
+            </div>
+            <button type="button" onClick={() => setExpenseModal(null)}>
+              <X />
+            </button>
+          </div>
+
+          {expenseModal.kind === "sub" ? (
+            <>
+              <div className="card-title">
+                <div>
+                  <h2>Detalle de subgastos</h2>
+                  <p>{subRows.length} fila{subRows.length === 1 ? "" : "s"} lista{subRows.length === 1 ? "" : "s"} para registrar.</p>
+                </div>
+                <button
+                  type="button"
+                  className="add-subexpense"
+                  onClick={() => setSubRows((rows) => [...rows, Date.now() + rows.length])}
+                >
+                  <Plus size={16} />
+                  Agregar fila
+                </button>
+              </div>
+
+              {warehouseItems.length > 0 && (
+                <div style={{ marginBottom: "14px", padding: "10px 12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#334155", display: "flex", alignItems: "center", gap: "5px" }}>
+                      <Package size={13} color="#2563eb" /> INSUMOS FRECUENTES DE ALMACÉN (1 CLIC)
+                    </span>
+                    <span style={{ fontSize: "10px", color: "var(--muted)" }}>Haz clic para autocompletar</span>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", maxHeight: "85px", overflowY: "auto" }}>
+                    {warehouseItems.slice(0, 10).map((w) => (
+                      <button
+                        key={w.id}
+                        type="button"
+                        onClick={() => addSubExpenseFromWarehouse(w)}
+                        style={{
+                          fontSize: "11px",
+                          padding: "3px 8px",
+                          borderRadius: "14px",
+                          background: "#ffffff",
+                          border: "1px solid #cbd5e1",
+                          color: "#0f172a",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          fontWeight: 500,
+                        }}
+                        title={'Agregar ' + cleanProductName(w.name) + ' (S/ ' + getWarehouseUnitCost(w).toFixed(2) + '/' + w.baseUnit + ')'}
+                      >
+                        <Plus size={11} color="#2563eb" />
+                        <span>{cleanProductName(w.name)}</span>
+                        <strong style={{ color: "#2563eb", fontSize: "10px" }}>
+                          S/ {getWarehouseUnitCost(w).toFixed(2)}/{w.baseUnit}
+                        </strong>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {subRows.map((row, index) => {
+                const category = subCategories[row] ?? categories.find((item) => item !== "Ahorro") ?? categories[0];
+                const currentName = subNames[row] ?? "";
+                const currentAmount = subAmounts[row] ?? "";
+                const currentQty = subQuantities[row] ?? "1";
+                const currentUnit = subUnits[row] ?? "unidad";
+                const currentUnitPrice = subUnitPrices[row] ?? "";
+                const linkedWId = subWarehouseIds[row];
+                const linkedItem = linkedWId ? warehouseItems.find((w) => w.id === linkedWId) : null;
+                const isPhysical = Boolean(linkedItem) || isPhysicalCategory(category);
+                const warehouseCats = Array.from(new Set(warehouseItems.map((w) => w.category)));
+
+                return (
+                  <div
+                    className="subexpense-form-row"
+                    key={row}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                      padding: "12px",
+                      background: linkedItem ? "#f0fdf4" : "#f8fafc",
+                      borderRadius: "8px",
+                      border: linkedItem ? "1px solid #86efac" : "1px solid #e2e8f0",
+                      marginBottom: "12px",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    {isPhysical && warehouseItems.length > 0 && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1, minWidth: "220px" }}>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              color: linkedItem ? "#15803d" : "var(--muted)",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            <Package size={13} color={linkedItem ? "#16a34a" : "currentColor"} /> {linkedItem ? "Producto de Almacén:" : "¿Jalar de Almacén?"}
+                          </span>
+                          <select
+                            style={{
+                              fontSize: "12px",
+                              padding: "4px 8px",
+                              flex: 1,
+                              borderRadius: "6px",
+                              border: linkedItem ? "1px solid #86efac" : "1px solid #cbd5e1",
+                              background: "#ffffff",
+                            }}
+                            value={linkedWId || ""}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (val) selectWarehouseForSubRow(row, val);
+                              else
+                                setSubWarehouseIds((prev) => {
+                                  const n = { ...prev };
+                                  delete n[row];
+                                  return n;
+                                });
+                            }}
+                          >
+                            <option value="">-- Selecciona producto para autocompletar --</option>
+                            {warehouseCats.map((cat) => (
+                              <optgroup key={cat} label={'📁 ' + cat}>
+                                {warehouseItems
+                                  .filter((w) => w.category === cat)
+                                  .map((wItem) => (
+                                    <option key={wItem.id} value={wItem.id}>
+                                      {formatWarehouseOptionLabel(wItem)}
+                                    </option>
+                                  ))}
+                              </optgroup>
+                            ))}
+                          </select>
+                        </div>
+                        {linkedItem && (
+                          <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "4px", background: "#dcfce7", color: "#15803d", fontWeight: 600 }}>
+                            ✓ Vinculado con Almacén
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div style={{ display: "grid", gridTemplateColumns: "minmax(140px, 1.8fr) minmax(110px, 1fr)", gap: "8px" }}>
+                      <label style={{ margin: 0 }}>
+                        Descripción
+                        <input
+                          name="name"
+                          required
+                          autoFocus={index === 0}
+                          value={currentName}
+                          onChange={(e) => setSubNames((prev) => ({ ...prev, [row]: e.target.value }))}
+                          placeholder={isPhysical ? "Ej. Mandarina, Arroz, Aceite..." : "Ej. Pasajes, Recibo de Luz, Pago..."}
+                        />
+                      </label>
+                      <label style={{ margin: 0 }}>
+                        Categoría
+                        <select
+                          name="category"
+                          value={category}
+                          onChange={(e) => {
+                            const newCat = e.target.value;
+                            setSubCategories((items) => ({ ...items, [row]: newCat }));
+                            if (!isPhysicalCategory(newCat))
+                              setSubWarehouseIds((prev) => {
+                                const n = { ...prev };
+                                delete n[row];
+                                return n;
+                              });
+                          }}
+                        >
+                          {categories.map((item) => (
+                            <option key={item}>{item}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+
+                    {isPhysical ? (
+                      <div className="unit-inputs-grid" style={{ alignItems: "flex-end" }}>
+                        <label style={{ margin: 0 }}>
+                          Cantidad
+                          <input
+                            name="quantity"
+                            type="number"
+                            step="any"
+                            min="0.01"
+                            value={currentQty}
+                            onChange={(e) => handleSubQuantityChange(row, e.target.value)}
+                            placeholder="1"
+                          />
+                        </label>
+                        <label style={{ margin: 0 }}>
+                          Unidad
+                          <select name="unit" value={currentUnit} onChange={(e) => setSubUnits((prev) => ({ ...prev, [row]: e.target.value }))}>
+                            {commonUnits.map((u) => (
+                              <option key={u.value} value={u.value}>
+                                {u.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label style={{ margin: 0 }}>
+                          P. Unitario (S/)
+                          <input
+                            name="unitPrice"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={currentUnitPrice}
+                            onChange={(e) => handleSubUnitPriceChange(row, e.target.value)}
+                            placeholder="0.00"
+                          />
+                        </label>
+                        <label style={{ margin: 0 }}>
+                          Monto Total (S/)
+                          <input
+                            name="amount"
+                            required
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={currentAmount}
+                            onChange={(e) => handleSubAmountChange(row, e.target.value)}
+                            placeholder="0.00"
+                            style={{ fontWeight: 700 }}
+                          />
+                        </label>
+                        {subRows.length > 1 ? (
+                          <button
+                            type="button"
+                            className="expense-delete"
+                            style={{ marginBottom: "4px" }}
+                            onClick={() => setSubRows((rows) => rows.filter((item) => item !== row))}
+                            title="Eliminar fila"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        ) : (
+                          <div style={{ width: 28 }} />
+                        )}
+                      </div>
+                    ) : (
+                      <div className="subexpense-simple-grid">
+                        <label style={{ margin: 0 }}>
+                          Monto (S/)
+                          <input
+                            name="amount"
+                            required
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={currentAmount}
+                            onChange={(e) => handleSubAmountChange(row, e.target.value)}
+                            placeholder="0.00"
+                            style={{ fontWeight: 700 }}
+                          />
+                        </label>
+                        {subRows.length > 1 ? (
+                          <button
+                            type="button"
+                            className="expense-delete"
+                            style={{ marginBottom: "4px" }}
+                            onClick={() => setSubRows((rows) => rows.filter((item) => item !== row))}
+                            title="Eliminar fila"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        ) : (
+                          <div style={{ width: 28 }} />
+                        )}
+                      </div>
+                    )}
+
+                    {category === "Ahorro" && (
+                      <label style={{ margin: 0 }}>
+                        Destino
+                        <select
+                          value={String(subSavingDestinations[row] ?? "general")}
+                          onChange={(e) =>
+                            setSubSavingDestinations((items) => ({
+                              ...items,
+                              [row]: e.target.value === "general" ? "general" : Number(e.target.value),
+                            }))
+                          }
+                        >
+                          <option value="general">Ahorro general</option>
+                          {savingsGoals.map((goal) => (
+                            <option key={goal.id} value={goal.id}>
+                              {goal.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          ) : expenseModal.kind === "fixed" ? (
+            <>
+              <label>
+                Descripción
+                <input
+                  name="name"
+                  required
+                  autoFocus
+                  value={expenseModalTitle || ""}
+                  onChange={(e) => setExpenseModalTitle(e.target.value)}
+                  placeholder="Ej. Agua y luz, Alquiler, Internet, Seguro"
+                />
+              </label>
+              <div className="form-row">
+                <label>
+                  Monto mensual (S/)
+                  <input
+                    name="amount"
+                    required
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={expenseModalAmount}
+                    onChange={(e) => handleExpenseModalAmountChange(e.target.value)}
+                    placeholder="0.00"
+                    style={{ fontWeight: 700 }}
+                  />
+                </label>
+                <label>
+                  Categoría
+                  <select
+                    name="category"
+                    value={expenseModalCategory || categories[0]}
+                    onChange={(e) => setExpenseModalCategory(e.target.value)}
+                  >
+                    {categories.map((category) => (
+                      <option key={category}>{category}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </>
+          ) : expenseModal.kind === "monthly" ? (
+            <>
+              {isPhysicalCategory(expenseModalCategory) && warehouseItems.length > 0 && (
+                <div className="warehouse-quick-pick" style={{ marginBottom: "10px" }}>
+                  <span className="warehouse-quick-pick-label">
+                    <Package size={14} /> 📦 ¿Jalar producto habitual del Almacén?
+                  </span>
+                  <select
+                    value={expenseModalWarehouseId || ""}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      if (!val) {
+                        setExpenseModalWarehouseId(null);
+                        return;
+                      }
+                      const found = warehouseItems.find((item) => item.id === val);
+                      if (found) {
+                        const title = cleanProductName(found.name) || found.name;
+                        const unitCost = getWarehouseUnitCost(found);
+                        const qty = parseFloat(expenseModalQuantity) || 1;
+                        const total = (qty * unitCost).toFixed(2);
+                        setExpenseModalWarehouseId(val);
+                        setExpenseModalTitle(title);
+                        setExpenseModalUnit(found.baseUnit || "unidad");
+                        setExpenseModalUnitPrice(unitCost.toFixed(2));
+                        setExpenseModalAmount(total);
+                        if (categories.includes(found.category)) {
+                          setExpenseModalCategory(found.category);
+                        }
+                        setNotice(
+                          '✓ "' + title + '": S/ ' + unitCost.toFixed(2) + ' por ' + found.baseUnit + ' (' + qty + ' ' + found.baseUnit + ' = S/ ' + total + ')'
+                        );
+                      }
+                    }}
+                  >
+                    <option value="">-- Selecciona para autocompletar --</option>
+                    {Array.from(new Set(warehouseItems.map((w) => w.category))).map((cat) => (
+                      <optgroup key={cat} label={'📁 ' + cat}>
+                        {warehouseItems
+                          .filter((w) => w.category === cat)
+                          .map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {formatWarehouseOptionLabel(item)}
+                            </option>
+                          ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <label>
+                Descripción
+                <input
+                  name="name"
+                  required
+                  autoFocus
+                  value={expenseModalTitle || ""}
+                  onChange={(e) => setExpenseModalTitle(e.target.value)}
+                  placeholder={isPhysicalCategory(expenseModalCategory) ? "Ej. Mandarina, Arroz, Verduras" : "Ej. Almuerzo, Taxi, Cine, Farmacia"}
+                />
+              </label>
+
+              {isPhysicalCategory(expenseModalCategory) || Boolean(expenseModalWarehouseId) ? (
+                <>
+                  <label>
+                    Categoría
+                    <select
+                      name="category"
+                      value={expenseModalCategory || categories[0]}
+                      onChange={(e) => {
+                        setExpenseModalCategory(e.target.value);
+                        if (!isPhysicalCategory(e.target.value)) setExpenseModalWarehouseId(null);
+                      }}
+                    >
+                      {categories.map((category) => (
+                        <option key={category}>{category}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="unit-inputs-grid">
+                    <label style={{ margin: 0 }}>
+                      Cantidad
+                      <input
+                        name="quantity"
+                        type="number"
+                        step="any"
+                        min="0.01"
+                        value={expenseModalQuantity}
+                        onChange={(e) => handleExpenseModalQuantityChange(e.target.value)}
+                        placeholder="1"
+                      />
+                    </label>
+                    <label style={{ margin: 0 }}>
+                      Unidad
+                      <select
+                        name="unit"
+                        value={expenseModalUnit}
+                        onChange={(e) => setExpenseModalUnit(e.target.value)}
+                      >
+                        {commonUnits.map((u) => (
+                          <option key={u.value} value={u.value}>
+                            {u.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={{ margin: 0 }}>
+                      P. Unitario (S/)
+                      <input
+                        name="unitPrice"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={expenseModalUnitPrice}
+                        onChange={(e) => handleExpenseModalUnitPriceChange(e.target.value)}
+                        placeholder="0.00"
+                      />
+                    </label>
+                    <label style={{ margin: 0 }}>
+                      Monto Total (S/)
+                      <input
+                        name="amount"
+                        required
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={expenseModalAmount}
+                        onChange={(e) => handleExpenseModalAmountChange(e.target.value)}
+                        placeholder="0.00"
+                        style={{ fontWeight: 700 }}
+                      />
+                    </label>
+                  </div>
+                </>
+              ) : (
+                <div className="form-row">
+                  <label>
+                    Monto (S/)
+                    <input
+                      name="amount"
+                      required
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={expenseModalAmount}
+                      onChange={(e) => handleExpenseModalAmountChange(e.target.value)}
+                      placeholder="0.00"
+                      style={{ fontWeight: 700 }}
+                    />
+                  </label>
+                  <label>
+                    Categoría
+                    <select
+                      name="category"
+                      value={expenseModalCategory || categories[0]}
+                      onChange={(e) => {
+                        setExpenseModalCategory(e.target.value);
+                        if (!isPhysicalCategory(e.target.value)) setExpenseModalWarehouseId(null);
+                      }}
+                    >
+                      {categories.map((category) => (
+                        <option key={category}>{category}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <label>
+                Categoría existente
+                <input name="name" required autoFocus placeholder="Ej. Alimentación" />
+              </label>
+              <label>
+                Presupuesto mensual (S/)
+                <input name="amount" required type="number" min="0.01" step="0.01" placeholder="0.00" />
+              </label>
+            </>
+          )}
+
+          <div className="modal-actions">
+            <button type="button" onClick={() => setExpenseModal(null)}>
+              Cancelar
+            </button>
+            <button className="primary" type="submit">
+              {expenseModal.kind === "group"
+                ? "Activar detalle"
+                : expenseModal.kind === "sub"
+                ? ('Guardar ' + subRows.length + ' subgasto' + (subRows.length === 1 ? '' : 's'))
+                : "Guardar gasto"}
+            </button>
+          </div>
+        </form>
+      </div>
+    )}
+    {expenseEdit&&(()=>{const group=expenseGroups.find(item=>item.id===expenseEdit.groupId);const item=expenseEdit.kind==="sub"?group?.items.find(entry=>entry.id===expenseEdit.itemId):undefined;if(!group||(expenseEdit.kind==="sub"&&!item))return null;const isGroup=expenseEdit.kind==="group";const groupPeriodItems=group.items.filter(entry=>(entry.period??initialPeriod)===activePeriod);const groupPeriodUsed=groupPeriodItems.reduce((sum,entry)=>sum+entry.amount,0);const isPhysical=item?(isPhysicalCategory(item.category)||Boolean(item.quantity)||Boolean(item.warehouseItemId)):false;return <div className="modal-backdrop" onMouseDown={()=>setExpenseEdit(null)}><form className="modal" onSubmit={saveExpenseEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>{isGroup?"Editar rubro":"Editar subgasto"}</h2><p>{isGroup?"Actualiza el nombre y el presupuesto. Los subgastos se conservan.":`Dentro del rubro ${group.name}.`}</p></div><button type="button" onClick={()=>setExpenseEdit(null)}><X/></button></div><label>{isGroup?"Nombre del rubro":"Descripción"}<input name="name" required autoFocus defaultValue={isGroup?group.name:item!.name}/></label>{!isGroup&&(isPhysical?<><label>Categoría<select name="category" defaultValue={item!.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><div className="unit-inputs-grid"><label style={{margin:0}}>Cantidad<input name="quantity" type="number" step="any" min="0.01" defaultValue={item!.quantity||1}/></label><label style={{margin:0}}>Unidad<select name="unit" defaultValue={item!.unit||"unidad"}>{commonUnits.map(u=><option key={u.value} value={u.value}>{u.label}</option>)}</select></label><label style={{margin:0}}>P. Unitario (S/)<input name="unitPrice" type="number" step="0.01" min="0.01" defaultValue={item!.unitPrice||(item!.amount/(item!.quantity||1))}/></label><label style={{margin:0}}>Monto Total (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={item!.amount} style={{fontWeight:700}}/></label></div></>:<div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={item!.amount} style={{fontWeight:700}}/></label><label>Categoría<select name="category" defaultValue={item!.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label></div>)}{isGroup&&<label>Presupuesto mensual (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={group.budget}/></label>}<div className="module-callout"><ReceiptText/><div><strong>{isGroup?`${groupPeriodItems.length} subgastos en ${monthNames[selectedMonth]}`:`Periodo: ${monthNames[selectedMonth]} ${selectedYear}`}</strong><span>{isGroup?`Total usado en ${monthNames[selectedMonth]}: S/ ${groupPeriodUsed.toLocaleString("es-PE",{minimumFractionDigits:2})}`:`Valor actual: S/ ${item!.amount.toLocaleString("es-PE",{minimumFractionDigits:2})}`}</span></div></div><div className="modal-actions"><button type="button" onClick={()=>setExpenseEdit(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
+    {detailedEdit&&(()=>{const item=(detailedEdit.section==="fixed"?fixedExpenses:monthlyExpenses).find(entry=>entry.id===detailedEdit.id);if(!item)return null;const isFixed=detailedEdit.section==="fixed";const isPhysical=!isFixed&&(isPhysicalCategory(item.category)||Boolean(item.quantity)||Boolean(item.warehouseItemId));return <div className="modal-backdrop" onMouseDown={()=>setDetailedEdit(null)}><form className="modal" onSubmit={saveDetailedEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Editar {isFixed?"gasto fijo":"gasto mensual"}</h2><p>Actualiza los datos sin perder el registro.</p></div><button type="button" onClick={()=>setDetailedEdit(null)}><X/></button></div><label>Descripción<input name="name" required autoFocus defaultValue={item.name}/></label>{isFixed?<div className="form-row"><label>Monto mensual (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={item.amount} style={{fontWeight:700}}/></label><label>Categoría<select name="category" defaultValue={item.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label></div>:isPhysical?<><label>Categoría<select name="category" defaultValue={item.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><div className="unit-inputs-grid"><label style={{margin:0}}>Cantidad<input name="quantity" type="number" step="any" min="0.01" defaultValue={item.quantity||1}/></label><label style={{margin:0}}>Unidad<select name="unit" defaultValue={item.unit||"unidad"}>{commonUnits.map(u=><option key={u.value} value={u.value}>{u.label}</option>)}</select></label><label style={{margin:0}}>P. Unitario (S/)<input name="unitPrice" type="number" step="0.01" min="0.01" defaultValue={item.unitPrice||(item.amount/(item.quantity||1))}/></label><label style={{margin:0}}>Monto Total (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={item.amount} style={{fontWeight:700}}/></label></div></>:<div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0" step="0.01" defaultValue={item.amount} style={{fontWeight:700}}/></label><label>Categoría<select name="category" defaultValue={item.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label></div>}<div className="modal-actions"><button type="button" onClick={()=>setDetailedEdit(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
     {showSavingGoalModal&&<div className="modal-backdrop" onMouseDown={()=>setShowSavingGoalModal(false)}><form className="modal" onSubmit={createSavingsGoal} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nueva meta de ahorro</h2><p>Define para qué ahorrarás y cuánto necesitas reunir.</p></div><button type="button" onClick={()=>setShowSavingGoalModal(false)}><X/></button></div><label>Nombre de la meta<input name="name" required autoFocus placeholder="Ej. Laptop"/></label><div className="form-row"><label>Monto objetivo (S/)<input name="target" required type="number" min="0.01" step="0.01" placeholder="3000"/></label><label>Aporte inicial (S/)<input name="amount" type="number" min="0" step="0.01" defaultValue="0"/></label></div><div className="modal-actions"><button type="button" onClick={()=>setShowSavingGoalModal(false)}>Cancelar</button><button className="primary" type="submit">Crear meta</button></div></form></div>}
     {savingContributionTarget!==null&&<div className="modal-backdrop" onMouseDown={()=>setSavingContributionTarget(null)}><form className="modal" onSubmit={contributeToSaving} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Movimiento de ahorro</h2><p>{savingContributionTarget==="general"?"Ahorro general sin destino específico.":`Meta: ${savingsGoals.find(goal=>goal.id===savingContributionTarget)?.name??""}`}</p></div><button type="button" onClick={()=>setSavingContributionTarget(null)}><X/></button></div><label>Operación<select name="operation"><option value="add">Agregar aporte</option><option value="withdraw">Retirar dinero</option></select></label><label>Monto (S/)<input name="amount" required autoFocus type="number" min="0.01" step="0.01" placeholder="0.00"/></label><div className="modal-actions"><button type="button" onClick={()=>setSavingContributionTarget(null)}>Cancelar</button><button className="primary" type="submit">Guardar movimiento</button></div></form></div>}
     {showBudgetModal&&<div className="modal-backdrop" onMouseDown={()=>setShowBudgetModal(false)}><form className="modal" onSubmit={addBudget} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Nuevo presupuesto</h2><p>Define el límite mensual de un rubro.</p></div><button type="button" onClick={()=>setShowBudgetModal(false)}><X/></button></div><label>Rubro<input name="name" required autoFocus placeholder="Ej. Alimentación"/></label><label>Límite mensual (S/)<input name="limit" required type="number" min="0.01" step="0.01" placeholder="0.00"/></label><label>Color<select name="color"><option value="purple">Morado</option><option value="blue">Azul</option><option value="orange">Naranja</option><option value="teal">Verde</option></select></label><div className="modal-actions"><button type="button" onClick={()=>setShowBudgetModal(false)}>Cancelar</button><button className="primary" type="submit">Crear presupuesto</button></div></form></div>}
-    {editingMovement&&<div className="modal-backdrop" onMouseDown={()=>setEditingMovement(null)}><form className="modal" onSubmit={saveMovementEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Editar movimiento</h2><p>Actualiza este registro sin crear uno nuevo.</p></div><button type="button" onClick={()=>setEditingMovement(null)}><X/></button></div><label>Descripción<input name="title" required autoFocus defaultValue={editingMovement.title}/></label><div className="form-row"><label>Categoría<select name="category" defaultValue={editingMovement.category}>{(editingMovement.kind==="income"?incomeCategories:categories).map(category=><option key={category}>{category}</option>)}</select></label></div>{editingMovement.kind==="expense"?<div style={{display:"grid",gridTemplateColumns:"75px 105px 1fr 1fr",gap:"8px",alignItems:"flex-end",margin:"10px 0"}}><label style={{margin:0}}>Cantidad<input name="quantity" type="number" step="any" min="0.01" defaultValue={editingMovement.quantity||1}/></label><label style={{margin:0}}>Unidad<select name="unit" defaultValue={editingMovement.unit||"unidad"}>{commonUnits.map(u=><option key={u.value} value={u.value}>{u.label}</option>)}</select></label><label style={{margin:0}}>P. Unitario (S/)<input name="unitPrice" type="number" step="0.01" min="0.01" defaultValue={editingMovement.unitPrice||(editingMovement.amount/(editingMovement.quantity||1))}/></label><label style={{margin:0}}>Monto Total (S/)<input name="amount" required type="number" min="0.01" step="0.01" defaultValue={editingMovement.amount} style={{fontWeight:700}}/></label></div>:<label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" defaultValue={editingMovement.amount}/></label>}<div className="modal-actions"><button type="button" onClick={()=>setEditingMovement(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>}
+    {editingMovement&&(()=>{const isFixed=editingMovement.expenseSource==="fixed";const isPhysical=editingMovement.kind==="expense"&&!isFixed&&(isPhysicalCategory(editingMovement.category)||Boolean(editingMovement.quantity)||Boolean(editingMovement.warehouseItemId));return <div className="modal-backdrop" onMouseDown={()=>setEditingMovement(null)}><form className="modal" onSubmit={saveMovementEdit} onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><h2>Editar movimiento</h2><p>Actualiza este registro sin crear uno nuevo.</p></div><button type="button" onClick={()=>setEditingMovement(null)}><X/></button></div><label>Descripción<input name="title" required autoFocus defaultValue={editingMovement.title}/></label>{editingMovement.kind==="expense"?(isFixed?<div className="form-row"><label>Monto mensual (S/)<input name="amount" required type="number" min="0.01" step="0.01" defaultValue={editingMovement.amount} style={{fontWeight:700}}/></label><label>Categoría<select name="category" defaultValue={editingMovement.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label></div>:isPhysical?<><label>Categoría<select name="category" defaultValue={editingMovement.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><div className="unit-inputs-grid"><label style={{margin:0}}>Cantidad<input name="quantity" type="number" step="any" min="0.01" defaultValue={editingMovement.quantity||1}/></label><label style={{margin:0}}>Unidad<select name="unit" defaultValue={editingMovement.unit||"unidad"}>{commonUnits.map(u=><option key={u.value} value={u.value}>{u.label}</option>)}</select></label><label style={{margin:0}}>P. Unitario (S/)<input name="unitPrice" type="number" step="0.01" min="0.01" defaultValue={editingMovement.unitPrice||(editingMovement.amount/(editingMovement.quantity||1))}/></label><label style={{margin:0}}>Monto Total (S/)<input name="amount" required type="number" min="0.01" step="0.01" defaultValue={editingMovement.amount} style={{fontWeight:700}}/></label></div></>:<div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" defaultValue={editingMovement.amount} style={{fontWeight:700}}/></label><label>Categoría<select name="category" defaultValue={editingMovement.category}>{categories.map(category=><option key={category}>{category}</option>)}</select></label></div>):<div className="form-row"><label>Monto (S/)<input name="amount" required type="number" min="0.01" step="0.01" defaultValue={editingMovement.amount} style={{fontWeight:700}}/></label><label>Categoría<select name="category" defaultValue={editingMovement.category}>{incomeCategories.map(category=><option key={category}>{category}</option>)}</select></label></div>}<div className="modal-actions"><button type="button" onClick={()=>setEditingMovement(null)}>Cancelar</button><button className="primary" type="submit">Guardar cambios</button></div></form></div>})()}
     {deleteConfirmation&&<div className="modal-backdrop" onMouseDown={()=>setDeleteConfirmation(null)}><section className="modal delete-confirmation" role="dialog" aria-modal="true" aria-labelledby="delete-title" onMouseDown={e=>e.stopPropagation()}><div className="modal-title"><div><p className="eyebrow">CONFIRMACIÓN</p><h2 id="delete-title">¿Eliminar registro?</h2><p>{deleteConfirmation.message}</p></div><button type="button" aria-label="Cerrar" onClick={()=>setDeleteConfirmation(null)}><X/></button></div><div className="modal-actions"><button type="button" onClick={()=>setDeleteConfirmation(null)}>Cancelar</button><button className="danger-action" type="button" onClick={()=>{const action=deleteConfirmation.onConfirm;setDeleteConfirmation(null);action();}}>Eliminar</button></div></section></div>}
 
     {closeMonthModal&&closeMonthModal.open&&<div className="modal-backdrop" onMouseDown={()=>setCloseMonthModal(null)}>
